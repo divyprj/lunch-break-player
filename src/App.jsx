@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import { TRACKS } from './tracks';
+import bgArtworkWebp from './assets/background.webp';
 import bgArtworkPreview from './assets/background.jpg';
-import bgArtworkFull from './assets/background.png';
+
 
 const RESUME_KEY = 'lunch-break-player:resume';
 const IDLE_DELAY_MS = 7000;
@@ -416,17 +417,18 @@ export default function App() {
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
         <picture className="background-picture">
           <source
-            srcSet={bgArtworkFull}
-            media="(min-width: 1280px) and (min-resolution: 1.5dppx), (min-width: 1920px)"
+            srcSet={bgArtworkWebp}
+            type="image/webp"
           />
           <img
-            src={bgArtworkPreview}
+            src={bgArtworkWebp}
             alt="Seedhe Maut Lunch Break Artwork"
             decoding="async"
             fetchPriority="high"
             className={`background-art w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'}`}
           />
         </picture>
+
         <div
           className="absolute inset-0 transition-colors duration-[1600ms]"
           style={{
