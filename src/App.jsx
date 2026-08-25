@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
-import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
+import { ListMusic, Pause, Play, Search, SkipBack, SkipForward, X } from 'lucide-react';
 import { TRACKS } from './tracks';
 import bgArtworkWebp from './assets/background.webp';
 import bgArtworkPreview from './assets/background.jpg';
+
 
 
 const RESUME_KEY = 'lunch-break-player:resume';
@@ -64,15 +65,16 @@ export default function App() {
   const [onlineCount, setOnlineCount] = useState(22);
   const [isIdle, setIsIdle] = useState(false);
   const [isQueueOpen, setIsQueueOpen] = useState(false);
+  const [searchQuery, setSearchQuery] = useState('');
   const [easterEggActive, setEasterEggActive] = useState(false);
-  const [toastMessage, setToastMessage] = useState('');
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const audioRef = useRef(null);
   const progressBarRef = useRef(null);
   const playerShellRef = useRef(null);
+  const searchInputRef = useRef(null);
+  const activeTrackRowRef = useRef(null);
   const idleTimerRef = useRef(null);
-  const toastTimerRef = useRef(null);
   const easterEggTimerRef = useRef(null);
   const keyBufferRef = useRef('');
   const fadeFrameRef = useRef(null);
@@ -83,9 +85,34 @@ export default function App() {
   const currentTrackIndexRef = useRef(currentTrackIndex);
   const currentTimeRef = useRef(currentTime);
   const lastPersistAtRef = useRef(0);
+  const audioContextRef = useRef(null);
+  const analyserRef = useRef(null);
+  const cloudGlowRef = useRef(null);
 
   const currentTrack = TRACKS[currentTrackIndex] || TRACKS[0];
   const currentAura = currentTrack.aura || TRACKS[0].aura;
+
+  // Filtered tracks with original playlist indices for exact selection
+  const filteredTracks = useMemo(() => {
+    const all = TRACKS.map((track, index) => ({ track, index }));
+    if (!searchQuery.trim()) return all;
+    const q = searchQuery.toLowerCase().trim();
+    return all.filter(({ track }) =>
+      track.title.toLowerCase().includes(q) ||
+      track.artist.toLowerCase().includes(q)
+    );
+  }, [searchQuery]);
+
+  // Focus search input and scroll current track into view when drawer opens
+  useEffect(() => {
+    if (isQueueOpen) {
+      setTimeout(() => {
+        searchInputRef.current?.focus();
+        activeTrackRowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
+      }, 50);
+    }
+  }, [isQueueOpen]);
+
 
   const formatTime = useCallback((secs) => {
     if (!Number.isFinite(secs) || secs < 0) return '0:00';
@@ -94,11 +121,6 @@ export default function App() {
     return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
   }, []);
 
-  const flashToast = useCallback((message, delay = 2200) => {
-    window.clearTimeout(toastTimerRef.current);
-    setToastMessage(message);
-    toastTimerRef.current = window.setTimeout(() => setToastMessage(''), delay);
-  }, []);
 
   const applyAudioFade = useCallback(() => {
     const audio = audioRef.current;
@@ -213,7 +235,83 @@ export default function App() {
     return () => window.cancelAnimationFrame(vinylFrameRef.current);
   }, [isPlaying, prefersReducedMotion]);
 
+  // Audio-Reactive Dragon & Cloud Breathing Frequency Analyzer
+  useEffect(() => {
+    if (!isPlaying) {
+      if (cloudGlowRef.current) {
+        cloudGlowRef.current.style.setProperty('--bass-glow', '0');
+        cloudGlowRef.current.style.setProperty('--mid-glow', '0');
+        cloudGlowRef.current.style.setProperty('--treble-glow', '0');
+        cloudGlowRef.current.style.setProperty('--cloud-scale', '1');
+      }
+      return undefined;
+    }
+
+    const initAudioContext = () => {
+      if (!audioContextRef.current && audioRef.current) {
+        try {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (AudioContextClass) {
+            const ctx = new AudioContextClass();
+            const analyser = ctx.createAnalyser();
+            analyser.fftSize = 64;
+            analyser.smoothingTimeConstant = 0.82;
+            const source = ctx.createMediaElementSource(audioRef.current);
+            source.connect(analyser);
+            analyser.connect(ctx.destination);
+
+            audioContextRef.current = ctx;
+            analyserRef.current = analyser;
+          }
+        } catch (e) {
+          // Fallback if media source was already created or restricted
+        }
+      }
+      if (audioContextRef.current?.state === 'suspended') {
+        audioContextRef.current.resume().catch(() => {});
+      }
+    };
+
+    initAudioContext();
+
+    let frameId;
+    const dataArray = new Uint8Array(32);
+    let smoothedBass = 0;
+    let smoothedMid = 0;
+    let smoothedTreble = 0;
+
+    const updateAudioGlow = () => {
+      if (analyserRef.current) {
+        analyserRef.current.getByteFrequencyData(dataArray);
+
+        // Low Sub-Bass (808s / kick)
+        const rawBass = ((dataArray[1] || 0) + (dataArray[2] || 0) + (dataArray[3] || 0)) / 3 / 255;
+        // Mid Frequencies (vocals / snare)
+        const rawMid = ((dataArray[4] || 0) + (dataArray[5] || 0) + (dataArray[6] || 0)) / 3 / 255;
+        // High Frequencies (hi-hats / air)
+        const rawTreble = ((dataArray[8] || 0) + (dataArray[10] || 0) + (dataArray[12] || 0)) / 3 / 255;
+
+        smoothedBass += (rawBass - smoothedBass) * 0.16;
+        smoothedMid += (rawMid - smoothedMid) * 0.14;
+        smoothedTreble += (rawTreble - smoothedTreble) * 0.18;
+
+        if (cloudGlowRef.current) {
+          cloudGlowRef.current.style.setProperty('--bass-glow', (smoothedBass * 1.35).toFixed(3));
+          cloudGlowRef.current.style.setProperty('--mid-glow', (smoothedMid * 1.2).toFixed(3));
+          cloudGlowRef.current.style.setProperty('--treble-glow', (smoothedTreble * 1.4).toFixed(3));
+          cloudGlowRef.current.style.setProperty('--cloud-scale', (1 + smoothedBass * 0.05).toFixed(3));
+        }
+      }
+
+      frameId = window.requestAnimationFrame(updateAudioGlow);
+    };
+
+    frameId = window.requestAnimationFrame(updateAudioGlow);
+    return () => window.cancelAnimationFrame(frameId);
+  }, [isPlaying]);
+
   // Dynamic presence count fluctuation.
+
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlineCount(prev => Math.max(12, prev + (Math.random() > 0.5 ? 1 : -1)));
@@ -259,9 +357,8 @@ export default function App() {
     window.clearTimeout(easterEggTimerRef.current);
     setEasterEggActive(true);
     setOnlineCount(prev => prev + 3);
-    flashToast('TBSM');
     easterEggTimerRef.current = window.setTimeout(() => setEasterEggActive(false), 2400);
-  }, [flashToast]);
+  }, []);
 
   // Keyboard shortcuts and hidden TBSM unlock.
   useEffect(() => {
@@ -308,7 +405,6 @@ export default function App() {
   }, [persistResumeState]);
 
   useEffect(() => () => {
-    window.clearTimeout(toastTimerRef.current);
     window.clearTimeout(idleTimerRef.current);
     window.clearTimeout(easterEggTimerRef.current);
     window.cancelAnimationFrame(fadeFrameRef.current);
@@ -344,13 +440,13 @@ export default function App() {
       audio.currentTime = restoredTime;
       setCurrentTime(restoredTime);
       didRestoreResumeRef.current = true;
-      flashToast(`resumed from ${formatTime(restoredTime)}`);
     } else {
       setCurrentTime(audio.currentTime);
     }
 
     applyAudioFade();
   };
+
 
   const selectTrack = (index, shouldPlay = true) => {
     const nextIndex = (index + TRACKS.length) % TRACKS.length;
@@ -376,12 +472,56 @@ export default function App() {
 
     if (currentTrackIndex === TRACKS.length - 1) {
       setIsPlaying(false);
-      flashToast('back to work.', 3200);
       return;
     }
 
     selectTrack(currentTrackIndex + 1, true);
   };
+
+  // Native Web MediaSession API for lock-screen, Android/iOS notifications & hardware media keys
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
+
+    try {
+      navigator.mediaSession.metadata = new window.MediaMetadata({
+        title: currentTrack.title,
+        artist: currentTrack.artist,
+        album: currentTrack.album || 'Lunch Break',
+        artwork: [
+          { src: '/vinyl-cover.jpg', sizes: '512x512', type: 'image/jpeg' },
+          { src: '/background.webp', sizes: '1920x1080', type: 'image/webp' },
+        ],
+      });
+
+      navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
+      navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
+      navigator.mediaSession.setActionHandler('previoustrack', () => handlePrev());
+      navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
+      navigator.mediaSession.setActionHandler('seekto', (details) => {
+        if (details.seekTime && audioRef.current) {
+          audioRef.current.currentTime = details.seekTime;
+          setCurrentTime(details.seekTime);
+        }
+      });
+      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
+        const skip = details.seekOffset || 5;
+        if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - skip);
+      });
+      navigator.mediaSession.setActionHandler('seekforward', (details) => {
+        const skip = details.seekOffset || 5;
+        if (audioRef.current) audioRef.current.currentTime = Math.min(duration || 0, audioRef.current.currentTime + skip);
+      });
+    } catch (e) {
+      // Ignore unsupported action errors
+    }
+  }, [currentTrack, duration]);
+
+  useEffect(() => {
+    if ('mediaSession' in navigator) {
+      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    }
+  }, [isPlaying]);
+
 
   const handlePlayPause = () => {
     if (!isPlaying && audioRef.current && duration && audioRef.current.currentTime >= duration - 0.35) {
@@ -429,6 +569,51 @@ export default function App() {
           />
         </picture>
 
+        {/* Audio-Reactive Dragon & Cloud Breathing Ambient Fog Layer */}
+        <div
+          ref={cloudGlowRef}
+          className="pointer-events-none absolute inset-0 overflow-hidden select-none z-[1]"
+          style={{
+            '--bass-glow': '0',
+            '--mid-glow': '0',
+            '--treble-glow': '0',
+            '--cloud-scale': '1',
+          }}
+        >
+          {/* 1. Left Red Dragon Cloud Mist (Warm Crimson / Amber Pulse with Mid-Bass) */}
+          <div
+            className="absolute top-[28%] left-[34%] w-[38vw] h-[26vw] max-w-[550px] max-h-[380px] rounded-full blur-[65px] md:blur-[95px] mix-blend-screen pointer-events-none transition-transform duration-75 ease-out"
+            style={{
+              background: 'radial-gradient(circle, rgba(239, 68, 68, 0.42) 0%, rgba(245, 158, 11, 0.22) 45%, transparent 70%)',
+              opacity: isPlaying ? 'calc(0.12 + var(--mid-glow) * 0.55)' : 0.05,
+              transform: 'translate(-50%, -50%) scale(var(--cloud-scale))',
+              transformOrigin: 'center center',
+            }}
+          />
+
+          {/* 2. Right Green Dragon Cloud Mist (Mystical Emerald / Cyan Pulse with Treble) */}
+          <div
+            className="absolute top-[30%] right-[22%] w-[38vw] h-[26vw] max-w-[550px] max-h-[380px] rounded-full blur-[65px] md:blur-[95px] mix-blend-screen pointer-events-none transition-transform duration-75 ease-out"
+            style={{
+              background: 'radial-gradient(circle, rgba(16, 185, 129, 0.42) 0%, rgba(6, 182, 212, 0.22) 45%, transparent 70%)',
+              opacity: isPlaying ? 'calc(0.12 + var(--treble-glow) * 0.55)' : 0.05,
+              transform: 'translate(50%, -50%) scale(var(--cloud-scale))',
+              transformOrigin: 'center center',
+            }}
+          />
+
+          {/* 3. Mountain Summit Central Cloud Breathing (Sub-Bass Golden Mist) */}
+          <div
+            className="absolute top-[22%] left-1/2 w-[42vw] h-[24vw] max-w-[600px] max-h-[320px] rounded-full blur-[75px] md:blur-[110px] mix-blend-screen pointer-events-none transition-transform duration-75 ease-out"
+            style={{
+              background: 'radial-gradient(circle, rgba(254, 240, 138, 0.32) 0%, rgba(245, 158, 11, 0.18) 50%, transparent 75%)',
+              opacity: isPlaying ? 'calc(0.10 + var(--bass-glow) * 0.65)' : 0.04,
+              transform: 'translate(-50%, -50%) scale(var(--cloud-scale))',
+              transformOrigin: 'center center',
+            }}
+          />
+        </div>
+
         <div
           className="absolute inset-0 transition-colors duration-[1600ms]"
           style={{
@@ -458,39 +643,113 @@ export default function App() {
         </span>
       </div>
 
-      <div className={`message-flash fixed top-[18vh] left-1/2 z-20 -translate-x-1/2 text-[12px] font-semibold uppercase text-white/85 drop-shadow-[0_2px_14px_rgba(0,0,0,0.9)] ${toastMessage ? 'message-flash-visible' : ''}`}>
-        {toastMessage}
-      </div>
-
       <div className="flex-1" />
+
 
       <div className="player-dock flex w-full justify-center z-20">
         <div ref={playerShellRef} className={`player-shell relative w-full max-w-xl transition-all duration-700 ease-out ${isIdle && !isQueueOpen ? 'translate-y-2 scale-[0.96] opacity-75' : 'translate-y-0 scale-100 opacity-100'}`}>
           {isQueueOpen && (
-            <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[42vh] overflow-hidden rounded-[24px] border border-white/15 bg-black/35 p-2 shadow-[0_18px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-2xl backdrop-saturate-150">
-              <div className="queue-scroll max-h-[calc(42vh-1rem)] overflow-y-auto pr-1">
-                {TRACKS.map((track, index) => (
+            <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[58vh] md:max-h-[52vh] overflow-hidden rounded-[28px] border border-white/20 bg-black/60 p-3.5 shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-3xl backdrop-saturate-200 flex flex-col z-30">
+              {/* Drawer Header & Real-Time Search */}
+              <div className="flex items-center gap-2.5 pb-3 border-b border-white/10 px-1">
+                <div className="relative flex-1 flex items-center">
+                  <Search size={14} className="absolute left-3.5 text-white/40 pointer-events-none" />
+                  <input
+                    ref={searchInputRef}
+                    type="text"
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    placeholder="Search 29 Lunch Break tracks..."
+                    className="w-full bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/15 focus:border-white/30 rounded-full pl-9 pr-8 py-2 text-[13px] text-white placeholder-white/40 outline-none transition duration-200"
+                  />
+                  {searchQuery && (
+                    <button
+                      type="button"
+                      onClick={() => setSearchQuery('')}
+                      className="absolute right-3 text-white/50 hover:text-white"
+                    >
+                      <X size={13} />
+                    </button>
+                  )}
+                </div>
+
+                <div className="flex items-center gap-1.5 shrink-0">
+                  <span className="text-[11px] font-mono font-medium text-white/50 bg-white/10 px-2.5 py-1.5 rounded-full border border-white/10">
+                    {filteredTracks.length} / 29
+                  </span>
                   <button
                     type="button"
-                    key={track.id}
                     onClick={() => {
-                      selectTrack(index, true);
                       setIsQueueOpen(false);
+                      setSearchQuery('');
                     }}
-                    aria-current={index === currentTrackIndex ? 'true' : undefined}
-                    className={`queue-row flex h-10 w-full items-center gap-3 rounded-full px-3 text-left text-white transition ${index === currentTrackIndex ? 'bg-white/16' : 'hover:bg-white/10'}`}
+                    aria-label="Close tracklist"
+                    className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition active:scale-95 border-0 outline-none"
                   >
-                    <span className={`w-7 shrink-0 text-[11px] tabular-nums ${index === currentTrackIndex ? 'text-white' : 'text-white/45'}`}>
-                      {String(index + 1).padStart(2, '0')}
-                    </span>
-                    <span className="min-w-0 flex-1 truncate text-[13px] font-medium">
-                      {track.title}
-                    </span>
-                    <span className="shrink-0 font-mono text-[11px] tabular-nums text-white/45">
-                      {formatTime(track.duration)}
-                    </span>
+                    <X size={16} />
                   </button>
-                ))}
+                </div>
+              </div>
+
+              {/* Scrollable Tracklist with Capsule Visual Styling */}
+              <div className="queue-scroll mt-2.5 max-h-[calc(58vh-4.75rem)] md:max-h-[calc(52vh-4.75rem)] overflow-y-auto pr-1 space-y-1">
+                {filteredTracks.length === 0 ? (
+                  <div className="py-10 text-center text-xs text-white/40 font-mono">
+                    No tracks found matching "{searchQuery}"
+                  </div>
+                ) : (
+                  filteredTracks.map(({ track, index }) => {
+                    const isSelected = index === currentTrackIndex;
+                    return (
+                      <button
+                        type="button"
+                        key={track.id}
+                        ref={isSelected ? activeTrackRowRef : null}
+                        onClick={() => {
+                          selectTrack(index, true);
+                          setIsQueueOpen(false);
+                          setSearchQuery('');
+                        }}
+                        aria-current={isSelected ? 'true' : undefined}
+                        className={`group/row flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-white transition-all duration-200 ${
+                          isSelected
+                            ? 'bg-white/18 border border-white/25 shadow-sm'
+                            : 'hover:bg-white/10 border border-transparent'
+                        }`}
+                      >
+                        {/* Number or Equalizer */}
+                        <div className="w-6 shrink-0 flex items-center justify-center">
+                          {isSelected && isPlaying ? (
+                            <div className="flex items-end gap-0.5 h-3.5">
+                              <span className="eq-bar-1 w-0.5 rounded-full bg-[#00E575]" />
+                              <span className="eq-bar-2 w-0.5 rounded-full bg-[#00E575]" />
+                              <span className="eq-bar-3 w-0.5 rounded-full bg-[#00E575]" />
+                            </div>
+                          ) : (
+                            <span className={`text-[11px] font-mono tabular-nums ${isSelected ? 'text-white font-bold' : 'text-white/40 group-hover/row:text-white/70'}`}>
+                              {String(index + 1).padStart(2, '0')}
+                            </span>
+                          )}
+                        </div>
+
+                        {/* Title & Artist */}
+                        <div className="min-w-0 flex-1">
+                          <div className={`truncate text-[13px] font-medium leading-snug ${isSelected ? 'text-white font-semibold' : 'text-white/90'}`}>
+                            {track.title}
+                          </div>
+                          <div className="truncate text-[11px] text-white/50 leading-none mt-0.5">
+                            {track.artist}
+                          </div>
+                        </div>
+
+                        {/* Duration */}
+                        <div className="shrink-0 font-mono text-[11px] tabular-nums text-white/45 group-hover/row:text-white/70">
+                          {formatTime(track.duration)}
+                        </div>
+                      </button>
+                    );
+                  })
+                )}
               </div>
             </div>
           )}
@@ -526,9 +785,9 @@ export default function App() {
                 onClick={() => setIsQueueOpen(prev => !prev)}
                 aria-expanded={isQueueOpen}
                 aria-label="Toggle track queue"
-                className="block w-full min-w-0 cursor-pointer text-left"
+                className="block w-full min-w-0 cursor-pointer text-left group/title"
               >
-                <p className="truncate text-[15px] font-semibold text-white drop-shadow-sm">
+                <p className="truncate text-[15px] font-semibold text-white drop-shadow-sm group-hover/title:underline decoration-white/30 underline-offset-2">
                   {currentTrack.title}
                 </p>
                 <p className="truncate text-[13px] text-white/70">
@@ -603,9 +862,22 @@ export default function App() {
               >
                 <SkipForward size={17} strokeWidth={2.4} />
               </button>
+
+              {/* Tracklist Drawer Toggle Button */}
+              <button
+                type="button"
+                onClick={() => setIsQueueOpen(prev => !prev)}
+                aria-label="Open tracklist drawer"
+                className={`grid h-9 w-9 place-items-center rounded-full transition active:scale-95 border-0 outline-none focus:outline-none focus:ring-0 ${
+                  isQueueOpen ? 'bg-white/20 text-white' : 'text-white/70 hover:bg-white/15 hover:text-white'
+                }`}
+              >
+                <ListMusic size={17} strokeWidth={2.4} />
+              </button>
             </div>
           </div>
         </div>
+
       </div>
     </main>
   );
