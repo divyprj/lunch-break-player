@@ -1,6 +1,6 @@
 import vinylCover from './assets/vinyl-cover.jpg';
 
-export const TRACKS = [
+const RAW_TRACKS = [
   {
     "id": "track-1",
     "title": "11K",
@@ -263,3 +263,21 @@ export const TRACKS = [
     "audioUrl": "/audio/W%20%5BcV6sq4ByyK8%5D.m4a"
   }
 ];
+
+const TRACK_AURAS = [
+  { accent: '#f8f3d4', tint: 'rgba(248, 243, 212, 0.06)', glow: 'rgba(248, 243, 212, 0.30)' },
+  { accent: '#d8ecff', tint: 'rgba(102, 164, 218, 0.08)', glow: 'rgba(102, 164, 218, 0.32)' },
+  { accent: '#ffddd2', tint: 'rgba(214, 101, 70, 0.08)', glow: 'rgba(214, 101, 70, 0.28)' },
+  { accent: '#e5f7c7', tint: 'rgba(153, 190, 96, 0.07)', glow: 'rgba(153, 190, 96, 0.30)' },
+  { accent: '#fff3b8', tint: 'rgba(235, 189, 64, 0.07)', glow: 'rgba(235, 189, 64, 0.28)' },
+  { accent: '#cde7ff', tint: 'rgba(79, 145, 204, 0.08)', glow: 'rgba(79, 145, 204, 0.32)' },
+  { accent: '#f5d7ff', tint: 'rgba(171, 105, 190, 0.07)', glow: 'rgba(171, 105, 190, 0.28)' },
+  { accent: '#d9ffe7', tint: 'rgba(95, 188, 131, 0.07)', glow: 'rgba(95, 188, 131, 0.30)' },
+  { accent: '#ffe5bc', tint: 'rgba(205, 136, 54, 0.07)', glow: 'rgba(205, 136, 54, 0.26)' },
+  { accent: '#d8fff8', tint: 'rgba(73, 176, 169, 0.07)', glow: 'rgba(73, 176, 169, 0.30)' },
+];
+
+export const TRACKS = RAW_TRACKS.map((track, index) => ({
+  ...track,
+  aura: TRACK_AURAS[index % TRACK_AURAS.length],
+}));
