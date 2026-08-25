@@ -12,7 +12,7 @@ const IDLE_DELAY_MS = 7000;
 const EASTER_EGG_CODE = 'TBSM';
 const FADE_IN_SECONDS = 2.4;
 const FADE_OUT_SECONDS = 4.2;
-const FULL_VOLUME = 0.96;
+const FULL_VOLUME = 1.0;
 const PLAYING_VINYL_SPEED = 45;
 
 const readResumeState = () => {
