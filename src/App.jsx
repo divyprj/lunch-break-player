@@ -1,8 +1,9 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ListMusic, Pause, Play, Search, SkipBack, SkipForward, X } from 'lucide-react';
-import { TRACKS } from './tracks';
-import bgArtworkWebp from './assets/background.webp';
-import bgArtworkPreview from './assets/background.jpg';
+import { ALBUMS, TRACKS } from './tracks';
+import lunchBreakBg from './assets/background.webp';
+import nayaabBg from './assets/nayaab-background.webp';
+
 
 
 
@@ -85,9 +86,6 @@ export default function App() {
   const currentTrackIndexRef = useRef(currentTrackIndex);
   const currentTimeRef = useRef(currentTime);
   const lastPersistAtRef = useRef(0);
-  const audioContextRef = useRef(null);
-  const analyserRef = useRef(null);
-  const cloudGlowRef = useRef(null);
 
   const currentTrack = TRACKS[currentTrackIndex] || TRACKS[0];
   const currentAura = currentTrack.aura || TRACKS[0].aura;
@@ -102,6 +100,8 @@ export default function App() {
       track.artist.toLowerCase().includes(q)
     );
   }, [searchQuery]);
+
+
 
   // Scroll current track into view when drawer opens (without popping mobile keyboard)
   useEffect(() => {
@@ -235,82 +235,8 @@ export default function App() {
     return () => window.cancelAnimationFrame(vinylFrameRef.current);
   }, [isPlaying, prefersReducedMotion]);
 
-  // Audio-Reactive Dragon & Cloud Breathing Frequency Analyzer
-  useEffect(() => {
-    if (!isPlaying) {
-      if (cloudGlowRef.current) {
-        cloudGlowRef.current.style.setProperty('--bass-glow', '0');
-        cloudGlowRef.current.style.setProperty('--mid-glow', '0');
-        cloudGlowRef.current.style.setProperty('--treble-glow', '0');
-        cloudGlowRef.current.style.setProperty('--cloud-scale', '1');
-      }
-      return undefined;
-    }
-
-    const initAudioContext = () => {
-      if (!audioContextRef.current && audioRef.current) {
-        try {
-          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
-          if (AudioContextClass) {
-            const ctx = new AudioContextClass();
-            const analyser = ctx.createAnalyser();
-            analyser.fftSize = 64;
-            analyser.smoothingTimeConstant = 0.82;
-            const source = ctx.createMediaElementSource(audioRef.current);
-            source.connect(analyser);
-            analyser.connect(ctx.destination);
-
-            audioContextRef.current = ctx;
-            analyserRef.current = analyser;
-          }
-        } catch (e) {
-          // Fallback if media source was already created or restricted
-        }
-      }
-      if (audioContextRef.current?.state === 'suspended') {
-        audioContextRef.current.resume().catch(() => {});
-      }
-    };
-
-    initAudioContext();
-
-    let frameId;
-    const dataArray = new Uint8Array(32);
-    let smoothedBass = 0;
-    let smoothedMid = 0;
-    let smoothedTreble = 0;
-
-    const updateAudioGlow = () => {
-      if (analyserRef.current) {
-        analyserRef.current.getByteFrequencyData(dataArray);
-
-        // Low Sub-Bass (808s / kick)
-        const rawBass = ((dataArray[1] || 0) + (dataArray[2] || 0) + (dataArray[3] || 0)) / 3 / 255;
-        // Mid Frequencies (vocals / snare)
-        const rawMid = ((dataArray[4] || 0) + (dataArray[5] || 0) + (dataArray[6] || 0)) / 3 / 255;
-        // High Frequencies (hi-hats / air)
-        const rawTreble = ((dataArray[8] || 0) + (dataArray[10] || 0) + (dataArray[12] || 0)) / 3 / 255;
-
-        smoothedBass += (rawBass - smoothedBass) * 0.16;
-        smoothedMid += (rawMid - smoothedMid) * 0.14;
-        smoothedTreble += (rawTreble - smoothedTreble) * 0.18;
-
-        if (cloudGlowRef.current) {
-          cloudGlowRef.current.style.setProperty('--bass-glow', (smoothedBass * 1.35).toFixed(3));
-          cloudGlowRef.current.style.setProperty('--mid-glow', (smoothedMid * 1.2).toFixed(3));
-          cloudGlowRef.current.style.setProperty('--treble-glow', (smoothedTreble * 1.4).toFixed(3));
-          cloudGlowRef.current.style.setProperty('--cloud-scale', (1 + smoothedBass * 0.05).toFixed(3));
-        }
-      }
-
-      frameId = window.requestAnimationFrame(updateAudioGlow);
-    };
-
-    frameId = window.requestAnimationFrame(updateAudioGlow);
-    return () => window.cancelAnimationFrame(frameId);
-  }, [isPlaying]);
-
   // Dynamic presence count fluctuation.
+
 
   useEffect(() => {
     const interval = setInterval(() => {
@@ -555,62 +481,37 @@ export default function App() {
       }}
     >
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
-        <picture className="background-picture">
-          <source
-            srcSet={bgArtworkWebp}
-            type="image/webp"
-          />
+        {/* 1. Lunch Break Background Layer */}
+        <div
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            currentTrack.album === 'Lunch Break' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
+        >
           <img
-            src={bgArtworkWebp}
+            src={lunchBreakBg}
             alt="Seedhe Maut Lunch Break Artwork"
             decoding="async"
             fetchPriority="high"
-            className={`background-art w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'}`}
+            className={`w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${
+              isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'
+            }`}
           />
-        </picture>
+        </div>
 
-        {/* Audio-Reactive Dragon & Cloud Breathing Ambient Fog Layer */}
+        {/* 2. Nayaab Background Layer */}
         <div
-          ref={cloudGlowRef}
-          className="pointer-events-none absolute inset-0 overflow-hidden select-none z-[1]"
-          style={{
-            '--bass-glow': '0',
-            '--mid-glow': '0',
-            '--treble-glow': '0',
-            '--cloud-scale': '1',
-          }}
+          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
+            currentTrack.album === 'Nayaab' ? 'opacity-100' : 'opacity-0 pointer-events-none'
+          }`}
         >
-          {/* 1. Left Red Dragon Cloud Mist (Warm Crimson / Amber Pulse with Mid-Bass) */}
-          <div
-            className="absolute top-[28%] left-[34%] w-[38vw] h-[26vw] max-w-[550px] max-h-[380px] rounded-full blur-[65px] md:blur-[95px] mix-blend-screen pointer-events-none transition-transform duration-75 ease-out"
-            style={{
-              background: 'radial-gradient(circle, rgba(239, 68, 68, 0.42) 0%, rgba(245, 158, 11, 0.22) 45%, transparent 70%)',
-              opacity: isPlaying ? 'calc(0.12 + var(--mid-glow) * 0.55)' : 0.05,
-              transform: 'translate(-50%, -50%) scale(var(--cloud-scale))',
-              transformOrigin: 'center center',
-            }}
-          />
-
-          {/* 2. Right Green Dragon Cloud Mist (Mystical Emerald / Cyan Pulse with Treble) */}
-          <div
-            className="absolute top-[30%] right-[22%] w-[38vw] h-[26vw] max-w-[550px] max-h-[380px] rounded-full blur-[65px] md:blur-[95px] mix-blend-screen pointer-events-none transition-transform duration-75 ease-out"
-            style={{
-              background: 'radial-gradient(circle, rgba(16, 185, 129, 0.42) 0%, rgba(6, 182, 212, 0.22) 45%, transparent 70%)',
-              opacity: isPlaying ? 'calc(0.12 + var(--treble-glow) * 0.55)' : 0.05,
-              transform: 'translate(50%, -50%) scale(var(--cloud-scale))',
-              transformOrigin: 'center center',
-            }}
-          />
-
-          {/* 3. Mountain Summit Central Cloud Breathing (Sub-Bass Golden Mist) */}
-          <div
-            className="absolute top-[22%] left-1/2 w-[42vw] h-[24vw] max-w-[600px] max-h-[320px] rounded-full blur-[75px] md:blur-[110px] mix-blend-screen pointer-events-none transition-transform duration-75 ease-out"
-            style={{
-              background: 'radial-gradient(circle, rgba(254, 240, 138, 0.32) 0%, rgba(245, 158, 11, 0.18) 50%, transparent 75%)',
-              opacity: isPlaying ? 'calc(0.10 + var(--bass-glow) * 0.65)' : 0.04,
-              transform: 'translate(-50%, -50%) scale(var(--cloud-scale))',
-              transformOrigin: 'center center',
-            }}
+          <img
+            src={nayaabBg}
+            alt="Seedhe Maut x Sez on the Beat Nayaab Artwork"
+            decoding="async"
+            fetchPriority="high"
+            className={`w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${
+              isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'
+            }`}
           />
         </div>
 
@@ -649,9 +550,9 @@ export default function App() {
       <div className="player-dock flex w-full justify-center z-20">
         <div ref={playerShellRef} className={`player-shell relative w-full max-w-xl transition-all duration-700 ease-out ${isIdle && !isQueueOpen ? 'translate-y-2 scale-[0.96] opacity-75' : 'translate-y-0 scale-100 opacity-100'}`}>
           {isQueueOpen && (
-            <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[58vh] md:max-h-[52vh] overflow-hidden rounded-[28px] border border-white/20 bg-black/60 p-3.5 shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-3xl backdrop-saturate-200 flex flex-col z-30">
+            <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[60vh] md:max-h-[52vh] overflow-hidden rounded-[28px] border border-white/20 bg-black/65 p-3.5 shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-3xl backdrop-saturate-200 flex flex-col z-30">
               {/* Drawer Header & Real-Time Search */}
-              <div className="flex items-center gap-2.5 pb-3 border-b border-white/10 px-1">
+              <div className="flex items-center gap-2.5 pb-2.5 border-b border-white/10 px-1">
                 <div className="relative flex-1 flex items-center">
                   <Search size={14} className="absolute left-3.5 text-white/40 pointer-events-none" />
                   <input
@@ -659,7 +560,7 @@ export default function App() {
                     type="text"
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search 29 Lunch Break tracks..."
+                    placeholder="Search tracks..."
                     className="w-full bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/15 focus:border-white/30 rounded-full pl-9 pr-8 py-2 text-[13px] text-white placeholder-white/40 outline-none transition duration-200"
                   />
                   {searchQuery && (
@@ -673,26 +574,21 @@ export default function App() {
                   )}
                 </div>
 
-                <div className="flex items-center gap-1.5 shrink-0">
-                  <span className="text-[11px] font-mono font-medium text-white/50 bg-white/10 px-2.5 py-1.5 rounded-full border border-white/10">
-                    {filteredTracks.length} / 29
-                  </span>
-                  <button
-                    type="button"
-                    onClick={() => {
-                      setIsQueueOpen(false);
-                      setSearchQuery('');
-                    }}
-                    aria-label="Close tracklist"
-                    className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition active:scale-95 border-0 outline-none"
-                  >
-                    <X size={16} />
-                  </button>
-                </div>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setIsQueueOpen(false);
+                    setSearchQuery('');
+                  }}
+                  aria-label="Close tracklist"
+                  className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition active:scale-95 border-0 outline-none shrink-0"
+                >
+                  <X size={16} />
+                </button>
               </div>
 
-              {/* Scrollable Tracklist with Capsule Visual Styling */}
-              <div className="queue-scroll mt-2.5 max-h-[calc(58vh-4.75rem)] md:max-h-[calc(52vh-4.75rem)] overflow-y-auto pr-1 space-y-1">
+              {/* Scrollable Clean Tracklist */}
+              <div className="queue-scroll mt-2 max-h-[calc(60vh-4.5rem)] md:max-h-[calc(52vh-4.5rem)] overflow-y-auto pr-1 space-y-1">
                 {filteredTracks.length === 0 ? (
                   <div className="py-10 text-center text-xs text-white/40 font-mono">
                     No tracks found matching "{searchQuery}"
@@ -753,6 +649,8 @@ export default function App() {
               </div>
             </div>
           )}
+
+
 
           <div
             className="
