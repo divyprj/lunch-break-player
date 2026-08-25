@@ -7,8 +7,9 @@ import bgArtworkFull from './assets/background.png';
 const RESUME_KEY = 'lunch-break-player:resume';
 const IDLE_DELAY_MS = 7000;
 const EASTER_EGG_CODE = 'TBSM';
-const FADE_OUT_SECONDS = 4.0;
-const FULL_VOLUME = 1.0;
+const FADE_IN_SECONDS = 2.4;
+const FADE_OUT_SECONDS = 4.2;
+const FULL_VOLUME = 0.96;
 const PLAYING_VINYL_SPEED = 45;
 
 const readResumeState = () => {
@@ -38,6 +39,7 @@ const readResumeState = () => {
 const getFadeVolume = (time, totalDuration) => {
   if (!Number.isFinite(time) || time < 0) return FULL_VOLUME;
 
+  const fadeInLevel = Math.min(1, Math.max(0, time / FADE_IN_SECONDS));
   const remaining = Number.isFinite(totalDuration) && totalDuration > 0
     ? totalDuration - time
     : Number.POSITIVE_INFINITY;
@@ -45,9 +47,8 @@ const getFadeVolume = (time, totalDuration) => {
     ? Math.min(1, Math.max(0, remaining / FADE_OUT_SECONDS))
     : 1;
 
-  return Math.min(FULL_VOLUME, FULL_VOLUME * fadeOutLevel);
+  return Math.min(FULL_VOLUME, FULL_VOLUME * fadeInLevel * fadeOutLevel);
 };
-
 
 export default function App() {
   const resumeState = useMemo(() => readResumeState(), []);
