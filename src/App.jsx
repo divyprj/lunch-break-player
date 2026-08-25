@@ -39,19 +39,8 @@ const readResumeState = () => {
   return null;
 };
 
-const getFadeVolume = (time, totalDuration) => {
-  if (!Number.isFinite(time) || time < 0) return FULL_VOLUME;
+const getFadeVolume = () => FULL_VOLUME;
 
-  const fadeInLevel = Math.min(1, Math.max(0, time / FADE_IN_SECONDS));
-  const remaining = Number.isFinite(totalDuration) && totalDuration > 0
-    ? totalDuration - time
-    : Number.POSITIVE_INFINITY;
-  const fadeOutLevel = remaining < FADE_OUT_SECONDS
-    ? Math.min(1, Math.max(0, remaining / FADE_OUT_SECONDS))
-    : 1;
-
-  return Math.min(FULL_VOLUME, FULL_VOLUME * fadeInLevel * fadeOutLevel);
-};
 
 export default function App() {
   const resumeState = useMemo(() => readResumeState(), []);
@@ -172,7 +161,7 @@ export default function App() {
     if (!audio) return;
 
     if (isPlaying) {
-      applyAudioFade();
+      audio.volume = FULL_VOLUME;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
         playPromise.catch(() => setIsPlaying(false));
@@ -180,23 +169,8 @@ export default function App() {
     } else {
       audio.pause();
     }
-  }, [applyAudioFade, currentTrackIndex, isPlaying]);
+  }, [currentTrackIndex, isPlaying]);
 
-  // Smooth fade-in/out automation while audio is running.
-  useEffect(() => {
-    if (!isPlaying) {
-      window.cancelAnimationFrame(fadeFrameRef.current);
-      return undefined;
-    }
-
-    const tick = () => {
-      applyAudioFade();
-      fadeFrameRef.current = window.requestAnimationFrame(tick);
-    };
-
-    fadeFrameRef.current = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(fadeFrameRef.current);
-  }, [applyAudioFade, currentTrackIndex, isPlaying]);
 
   // Vinyl inertia: ease toward full speed while playing, coast down on pause.
   useEffect(() => {
