@@ -508,12 +508,14 @@ export default function App() {
             src={nayaabBg}
             alt="Seedhe Maut x Sez on the Beat Nayaab Artwork"
             decoding="async"
-            fetchPriority="high"
+            loading="lazy"
+            fetchPriority="low"
             className={`w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${
               isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'
             }`}
           />
         </div>
+
 
         <div
           className="absolute inset-0 transition-colors duration-[1600ms]"
