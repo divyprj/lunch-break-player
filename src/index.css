@@ -3,6 +3,7 @@
 
 :root {
   font-family: 'Plus Jakarta Sans', system-ui, -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, Oxygen, Ubuntu, Cantarell, sans-serif;
+  color-scheme: dark;
 }
 
 html, body {
@@ -12,6 +13,8 @@ html, body {
   height: 100%;
   overflow: hidden;
   user-select: none;
+  overscroll-behavior: none;
+  touch-action: manipulation;
   -webkit-font-smoothing: antialiased;
 }
 
@@ -36,12 +39,38 @@ button:focus, button:focus-visible {
   box-shadow: none !important;
 }
 
+.app-root {
+  min-height: 100vh;
+  min-height: 100dvh;
+  isolation: isolate;
+}
+
+.background-picture,
+.background-art {
+  display: block;
+  height: 100%;
+  width: 100%;
+}
+
+.background-art {
+  backface-visibility: hidden;
+  transform-origin: center center;
+  will-change: transform;
+}
+
+.player-dock {
+  padding-inline: max(1rem, env(safe-area-inset-left)) max(1rem, env(safe-area-inset-right));
+  padding-bottom: max(1rem, calc(env(safe-area-inset-bottom) + 1rem));
+}
+
 .player-shell {
+  width: min(36rem, 100%);
   transform-origin: center bottom;
 }
 
 .player-pill {
   min-width: 0;
+  contain: layout paint;
   transition:
     background-color 700ms ease,
     border-color 700ms ease,
@@ -59,11 +88,13 @@ button:focus, button:focus-visible {
 
 .queue-panel {
   animation: queueRise 220ms ease-out both;
+  overscroll-behavior: contain;
 }
 
 .queue-scroll {
   scrollbar-color: rgba(255, 255, 255, 0.24) transparent;
   scrollbar-width: thin;
+  -webkit-overflow-scrolling: touch;
 }
 
 .queue-scroll::-webkit-scrollbar {
@@ -109,6 +140,10 @@ button:focus, button:focus-visible {
   animation: presenceUnlock 2400ms ease both;
 }
 
+.player-pill button {
+  min-height: 2.25rem;
+}
+
 @keyframes queueRise {
   from {
     opacity: 0;
@@ -135,9 +170,18 @@ button:focus, button:focus-visible {
 }
 
 @media (max-width: 520px) {
+  .presence-badge {
+    top: max(1rem, calc(env(safe-area-inset-top) + 0.75rem));
+  }
+
+  .message-flash {
+    top: max(5.5rem, calc(env(safe-area-inset-top) + 4.5rem));
+  }
+
   .player-pill {
     gap: 0.625rem;
     padding: 0.625rem 0.75rem 0.625rem 0.625rem;
+    border-radius: 2rem;
   }
 
   .player-pill > div:first-child {
@@ -156,15 +200,68 @@ button:focus, button:focus-visible {
     height: 2.5rem;
     width: 2.5rem;
   }
+
+  .queue-panel {
+    max-height: min(48vh, 23rem);
+    border-radius: 1.25rem;
+  }
+
+  .queue-scroll {
+    max-height: calc(min(48vh, 23rem) - 1rem);
+  }
+
+  .queue-row {
+    height: 2.375rem;
+  }
 }
 
 @media (max-width: 380px) {
   .player-pill {
     gap: 0.5rem;
+    padding-inline: 0.5rem 0.625rem;
   }
 
   .player-pill > div:first-child {
-    height: 3.75rem;
-    width: 3.75rem;
+    height: 3.4rem;
+    width: 3.4rem;
+  }
+
+  .player-pill [aria-label="Previous track"],
+  .player-pill [aria-label="Next track"] {
+    height: 1.75rem;
+    width: 1.75rem;
+  }
+
+  .player-pill [aria-label="Play"],
+  .player-pill [aria-label="Pause"] {
+    height: 2.25rem;
+    width: 2.25rem;
+  }
+}
+
+@media (min-width: 900px) {
+  .player-dock {
+    padding-bottom: max(2rem, 6vh);
+  }
+
+  .player-pill:hover {
+    background-color: rgba(255, 255, 255, 0.13);
+    border-color: rgba(255, 255, 255, 0.26);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    animation-iteration-count: 1 !important;
+    scroll-behavior: auto !important;
+    transition-duration: 0.001ms !important;
+  }
+
+  .background-art,
+  .vinyl-disc {
+    will-change: auto;
   }
 }

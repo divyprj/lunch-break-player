@@ -1,7 +1,8 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { Pause, Play, SkipBack, SkipForward } from 'lucide-react';
 import { TRACKS } from './tracks';
-import bgArtwork from './assets/background.png';
+import bgArtworkPreview from './assets/background.jpg';
+import bgArtworkFull from './assets/background.png';
 
 const RESUME_KEY = 'lunch-break-player:resume';
 const IDLE_DELAY_MS = 7000;
@@ -64,6 +65,7 @@ export default function App() {
   const [isQueueOpen, setIsQueueOpen] = useState(false);
   const [easterEggActive, setEasterEggActive] = useState(false);
   const [toastMessage, setToastMessage] = useState('');
+  const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const audioRef = useRef(null);
   const progressBarRef = useRef(null);
@@ -77,6 +79,9 @@ export default function App() {
   const vinylFrameRef = useRef(null);
   const vinylAngleRef = useRef(0);
   const vinylVelocityRef = useRef(0);
+  const currentTrackIndexRef = useRef(currentTrackIndex);
+  const currentTimeRef = useRef(currentTime);
+  const lastPersistAtRef = useRef(0);
 
   const currentTrack = TRACKS[currentTrackIndex] || TRACKS[0];
   const currentAura = currentTrack.aura || TRACKS[0].aura;
@@ -101,6 +106,42 @@ export default function App() {
     const totalDuration = audio.duration || duration || currentTrack.duration || 0;
     audio.volume = getFadeVolume(audio.currentTime, totalDuration);
   }, [currentTrack.duration, duration]);
+
+  const persistResumeState = useCallback((trackIndex, trackTime, force = false) => {
+    if (typeof window === 'undefined') return;
+
+    const now = Date.now();
+    if (!force && now - lastPersistAtRef.current < 3000) return;
+
+    lastPersistAtRef.current = now;
+    window.localStorage.setItem(
+      RESUME_KEY,
+      JSON.stringify({
+        trackIndex,
+        currentTime: trackTime,
+        updatedAt: now,
+      }),
+    );
+  }, []);
+
+  useEffect(() => {
+    currentTrackIndexRef.current = currentTrackIndex;
+    currentTimeRef.current = currentTime;
+  }, [currentTime, currentTrackIndex]);
+
+  useEffect(() => {
+    const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
+    const handleMotionChange = () => setPrefersReducedMotion(mediaQuery.matches);
+
+    handleMotionChange();
+    if (mediaQuery.addEventListener) {
+      mediaQuery.addEventListener('change', handleMotionChange);
+      return () => mediaQuery.removeEventListener('change', handleMotionChange);
+    }
+
+    mediaQuery.addListener(handleMotionChange);
+    return () => mediaQuery.removeListener(handleMotionChange);
+  }, []);
 
   // Sync audio play/pause.
   useEffect(() => {
@@ -136,6 +177,12 @@ export default function App() {
 
   // Vinyl inertia: ease toward full speed while playing, coast down on pause.
   useEffect(() => {
+    if (prefersReducedMotion) {
+      window.cancelAnimationFrame(vinylFrameRef.current);
+      vinylVelocityRef.current = 0;
+      return undefined;
+    }
+
     let lastFrame = performance.now();
 
     const tick = (timestamp) => {
@@ -163,7 +210,7 @@ export default function App() {
     window.cancelAnimationFrame(vinylFrameRef.current);
     vinylFrameRef.current = window.requestAnimationFrame(tick);
     return () => window.cancelAnimationFrame(vinylFrameRef.current);
-  }, [isPlaying]);
+  }, [isPlaying, prefersReducedMotion]);
 
   // Dynamic presence count fluctuation.
   useEffect(() => {
@@ -183,7 +230,7 @@ export default function App() {
       }, IDLE_DELAY_MS);
     };
 
-    const events = ['mousemove', 'mousedown', 'touchstart', 'keydown'];
+    const events = ['mousemove', 'mousedown', 'touchstart', 'touchmove', 'keydown'];
     events.forEach(eventName => window.addEventListener(eventName, resetIdleTimer, { passive: true }));
     resetIdleTimer();
 
@@ -246,17 +293,18 @@ export default function App() {
 
   // Persist listening position without adding visible UI.
   useEffect(() => {
-    if (typeof window === 'undefined') return;
+    persistResumeState(currentTrackIndex, currentTime);
+  }, [currentTime, currentTrackIndex, persistResumeState]);
 
-    window.localStorage.setItem(
-      RESUME_KEY,
-      JSON.stringify({
-        trackIndex: currentTrackIndex,
-        currentTime,
-        updatedAt: Date.now(),
-      }),
-    );
-  }, [currentTime, currentTrackIndex]);
+  useEffect(() => {
+    const handleBeforeUnload = () => {
+      persistResumeState(currentTrackIndexRef.current, currentTimeRef.current, true);
+    };
+
+    window.addEventListener('beforeunload', handleBeforeUnload);
+
+    return () => window.removeEventListener('beforeunload', handleBeforeUnload);
+  }, [persistResumeState]);
 
   useEffect(() => () => {
     window.clearTimeout(toastTimerRef.current);
@@ -271,6 +319,8 @@ export default function App() {
     if (!audio) return;
 
     setCurrentTime(audio.currentTime);
+    currentTimeRef.current = audio.currentTime;
+    persistResumeState(currentTrackIndexRef.current, audio.currentTime);
     applyAudioFade();
   };
 
@@ -357,18 +407,26 @@ export default function App() {
 
   return (
     <main
-      className="relative flex h-screen w-screen flex-col items-center justify-between overflow-hidden select-none"
+      className="app-root relative flex w-screen flex-col items-center justify-between overflow-hidden select-none"
       style={{
         '--track-accent': currentAura.accent,
         '--track-glow': currentAura.glow,
       }}
     >
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
-        <img
-          src={bgArtwork}
-          alt="Seedhe Maut Lunch Break Artwork"
-          className={`w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${isIdle ? 'scale-[1.025]' : 'scale-100'}`}
-        />
+        <picture className="background-picture">
+          <source
+            srcSet={bgArtworkFull}
+            media="(min-width: 1280px) and (min-resolution: 1.5dppx), (min-width: 1920px)"
+          />
+          <img
+            src={bgArtworkPreview}
+            alt="Seedhe Maut Lunch Break Artwork"
+            decoding="async"
+            fetchPriority="high"
+            className={`background-art w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'}`}
+          />
+        </picture>
         <div
           className="absolute inset-0 transition-colors duration-[1600ms]"
           style={{
@@ -382,6 +440,7 @@ export default function App() {
       <audio
         ref={audioRef}
         src={currentTrack.audioUrl}
+        preload="metadata"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
@@ -403,7 +462,7 @@ export default function App() {
 
       <div className="flex-1" />
 
-      <div className="mb-[6vh] flex w-full justify-center px-4 z-20">
+      <div className="player-dock flex w-full justify-center z-20">
         <div ref={playerShellRef} className={`player-shell relative w-full max-w-xl transition-all duration-700 ease-out ${isIdle && !isQueueOpen ? 'translate-y-2 scale-[0.96] opacity-75' : 'translate-y-0 scale-100 opacity-100'}`}>
           {isQueueOpen && (
             <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[42vh] overflow-hidden rounded-[24px] border border-white/15 bg-black/35 p-2 shadow-[0_18px_70px_rgba(0,0,0,0.55),inset_0_1px_0_rgba(255,255,255,0.16)] backdrop-blur-2xl backdrop-saturate-150">
