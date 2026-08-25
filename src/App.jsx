@@ -1,8 +1,6 @@
-import React, { useState, useRef, useEffect } from 'react';
+﻿import React, { useState, useRef, useEffect } from 'react';
 import { TRACKS } from './tracks';
 import bgArtwork from './assets/background.png';
-
-
 
 export default function App() {
   const [currentTrackIndex, setCurrentTrackIndex] = useState(0);
@@ -103,7 +101,7 @@ export default function App() {
 
   return (
     <main className="relative flex h-screen w-screen flex-col items-center justify-between overflow-hidden select-none">
-      {/* 1. Fullscreen Background Image (Fixed Z-Index & Clean object-cover) */}
+      {/* 1. Fullscreen Background Image */}
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
         <img 
           src={bgArtwork} 
@@ -137,7 +135,7 @@ export default function App() {
       {/* Center Breathing Room */}
       <div className="flex-1" />
 
-      {/* 3. Bottom Glassmorphic Player (Exact match to screenshot) */}
+      {/* 3. Bottom Glassmorphic Player */}
       <div className="mb-[6vh] flex w-full justify-center px-4 z-20">
         <div className="w-full max-w-xl">
           <div 
@@ -205,34 +203,36 @@ export default function App() {
               </div>
             </div>
 
-            {/* Controls: Prev, Play/Pause, Next */}
+            {/* Controls: Prev, Play/Pause, Next (Clean, Outline-Free & Pixel-Centered) */}
             <div className="flex items-center gap-1.5 shrink-0">
               {/* Previous */}
               <button 
                 type="button" 
                 onClick={handlePrev}
                 aria-label="Previous track" 
-                className="grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/15 hover:text-white active:scale-95"
+                className="grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/15 hover:text-white active:scale-95 border-0 outline-none focus:outline-none focus:ring-0"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M6 6h2v12H6zm3.5 6l8.5 6V6z" />
                 </svg>
               </button>
 
-              {/* Play / Pause */}
+              {/* Play / Pause Button - Solid White Circle with NO outline and Centered Triangle */}
               <button 
                 type="button" 
                 onClick={() => setIsPlaying(prev => !prev)}
                 aria-label={isPlaying ? "Pause" : "Play"} 
-                className="grid h-11 w-11 place-items-center rounded-full bg-white text-black shadow-lg transition hover:scale-105 active:scale-95"
+                className="h-11 w-11 rounded-full bg-white text-black shadow-lg transition hover:scale-105 active:scale-95 flex items-center justify-center border-0 outline-none focus:outline-none focus:ring-0 focus-visible:outline-none p-0 cursor-pointer"
+                style={{ WebkitTapHighlightColor: 'transparent', outline: 'none', border: 'none' }}
               >
                 {isPlaying ? (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M6 19h4V5H6v14zm8-14v14h4V5h-4z" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="black">
+                    <rect x="6" y="4" width="4" height="16" rx="1" />
+                    <rect x="14" y="4" width="4" height="16" rx="1" />
                   </svg>
                 ) : (
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor" className="translate-x-0.5">
-                    <path d="M8 5v14l11-7z" />
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="black" className="ml-0.5">
+                    <polygon points="6,4 20,12 6,20" />
                   </svg>
                 )}
               </button>
@@ -242,7 +242,7 @@ export default function App() {
                 type="button" 
                 onClick={handleNext}
                 aria-label="Next track" 
-                className="grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/15 hover:text-white active:scale-95"
+                className="grid h-9 w-9 place-items-center rounded-full text-white/80 transition hover:bg-white/15 hover:text-white active:scale-95 border-0 outline-none focus:outline-none focus:ring-0"
               >
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor">
                   <path d="M16 6h2v12h-2zm-2 6L5.5 6v12z" />
