@@ -164,12 +164,17 @@ export default function App() {
       audio.volume = FULL_VOLUME;
       const playPromise = audio.play();
       if (playPromise !== undefined) {
-        playPromise.catch(() => setIsPlaying(false));
+        playPromise.catch((err) => {
+          if (err?.name !== 'AbortError') {
+            setIsPlaying(false);
+          }
+        });
       }
     } else {
       audio.pause();
     }
   }, [currentTrackIndex, isPlaying]);
+
 
 
   // Vinyl inertia: ease toward full speed while playing, coast down on pause.

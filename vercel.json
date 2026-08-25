@@ -1,47 +1,11 @@
 {
-  "cleanUrls": true,
-  "headers": [
+  "routes": [
     {
-      "source": "/audio/(.*)\\.m4a",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        },
-        {
-          "key": "Accept-Ranges",
-          "value": "bytes"
-        },
-        {
-          "key": "Content-Type",
-          "value": "audio/mp4"
-        }
-      ]
-    },
-
-    {
-      "source": "/(.*)\\.(webp|jpg|jpeg|png|svg|ico)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
+      "handle": "filesystem"
     },
     {
-      "source": "/assets/(.*)",
-      "headers": [
-        {
-          "key": "Cache-Control",
-          "value": "public, max-age=31536000, immutable"
-        }
-      ]
-    }
-  ],
-  "rewrites": [
-    {
-      "source": "/((?!audio/|assets/|favicon\\.svg|.*\\..*).*)",
-      "destination": "/index.html"
+      "src": "/(.*)",
+      "dest": "/index.html"
     }
   ]
 }
