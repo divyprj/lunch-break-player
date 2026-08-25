@@ -103,15 +103,15 @@ export default function App() {
     );
   }, [searchQuery]);
 
-  // Focus search input and scroll current track into view when drawer opens
+  // Scroll current track into view when drawer opens (without popping mobile keyboard)
   useEffect(() => {
     if (isQueueOpen) {
       setTimeout(() => {
-        searchInputRef.current?.focus();
         activeTrackRowRef.current?.scrollIntoView({ block: 'nearest', behavior: 'smooth' });
       }, 50);
     }
   }, [isQueueOpen]);
+
 
 
   const formatTime = useCallback((secs) => {
