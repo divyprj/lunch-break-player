@@ -1,7 +1,8 @@
 {
+  "cleanUrls": true,
   "headers": [
     {
-      "source": "/audio/(.*)",
+      "source": "/audio/(.*)\\.m4a",
       "headers": [
         {
           "key": "Cache-Control",
@@ -10,9 +11,14 @@
         {
           "key": "Accept-Ranges",
           "value": "bytes"
+        },
+        {
+          "key": "Content-Type",
+          "value": "audio/mp4"
         }
       ]
     },
+
     {
       "source": "/(.*)\\.(webp|jpg|jpeg|png|svg|ico)",
       "headers": [
