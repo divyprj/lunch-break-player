@@ -374,79 +374,135 @@ export default function App() {
   };
 
 
-  const selectTrack = (index, shouldPlay = true) => {
+  const selectTrack = useCallback((index, shouldPlay = true) => {
     const nextIndex = (index + TRACKS.length) % TRACKS.length;
+    const targetTrack = TRACKS[nextIndex];
+    if (!targetTrack) return;
+
     setCurrentTrackIndex(nextIndex);
     setCurrentTime(0);
-    setDuration(TRACKS[nextIndex]?.duration ?? 0);
+    setDuration(targetTrack.duration || 0);
     setIsPlaying(shouldPlay);
-  };
 
-  const handleNext = () => selectTrack(currentTrackIndex + 1, true);
-
-  const handlePrev = () => {
-    if (currentTime > 3 && audioRef.current) {
-      audioRef.current.currentTime = 0;
-      setCurrentTime(0);
-    } else {
-      selectTrack(currentTrackIndex - 1, true);
+    const audio = audioRef.current;
+    if (audio) {
+      // Direct source assignment starts progressive buffering immediately
+      if (audio.src !== targetTrack.audioUrl) {
+        audio.src = targetTrack.audioUrl;
+      }
+      audio.currentTime = 0;
+      applyAudioFade();
+      if (shouldPlay) {
+        audio.play().catch(() => {});
+      }
     }
-  };
 
-  const handleEnded = () => {
+    // Keep mobile lock-screen & notification widget continuously active without blinking
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+      try {
+        const absoluteCover = new URL(targetTrack.cover, window.location.href).href;
+        const absoluteBg = new URL(targetTrack.background, window.location.href).href;
+        navigator.mediaSession.metadata = new window.MediaMetadata({
+          title: targetTrack.title,
+          artist: targetTrack.artist,
+          album: targetTrack.album || 'Seedhe Maut',
+          artwork: [
+            { src: absoluteCover, sizes: '512x512', type: 'image/jpeg' },
+            { src: absoluteBg, sizes: '1920x1080', type: 'image/webp' },
+          ],
+        });
+        navigator.mediaSession.playbackState = shouldPlay ? 'playing' : 'paused';
+      } catch (e) {
+        // Safe fallback
+      }
+    }
+  }, [applyAudioFade]);
+
+  const handleNext = useCallback(() => {
+    selectTrack(currentTrackIndexRef.current + 1, true);
+  }, [selectTrack]);
+
+  const handlePrev = useCallback(() => {
+    const audio = audioRef.current;
+    if (audio && audio.currentTime > 3) {
+      audio.currentTime = 0;
+      setCurrentTime(0);
+      audio.play().catch(() => {});
+    } else {
+      selectTrack(currentTrackIndexRef.current - 1, true);
+    }
+  }, [selectTrack]);
+
+  const handleEnded = useCallback(() => {
     if (audioRef.current) audioRef.current.volume = 0;
 
-    if (currentTrackIndex === TRACKS.length - 1) {
+    if (currentTrackIndexRef.current === TRACKS.length - 1) {
       setIsPlaying(false);
       return;
     }
 
-    selectTrack(currentTrackIndex + 1, true);
-  };
+    selectTrack(currentTrackIndexRef.current + 1, true);
+  }, [selectTrack]);
 
-  // Native Web MediaSession API for lock-screen, Android/iOS notifications & hardware media keys
+  // Native Web MediaSession API handlers & continuous position sync
   useEffect(() => {
     if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
 
     try {
+      const absoluteCover = new URL(currentTrack.cover, window.location.href).href;
+      const absoluteBg = new URL(currentTrack.background, window.location.href).href;
       navigator.mediaSession.metadata = new window.MediaMetadata({
         title: currentTrack.title,
         artist: currentTrack.artist,
-        album: currentTrack.album || 'Lunch Break',
+        album: currentTrack.album || 'Seedhe Maut',
         artwork: [
-          { src: '/vinyl-cover.jpg', sizes: '512x512', type: 'image/jpeg' },
-          { src: '/background.webp', sizes: '1920x1080', type: 'image/webp' },
+          { src: absoluteCover, sizes: '512x512', type: 'image/jpeg' },
+          { src: absoluteBg, sizes: '1920x1080', type: 'image/webp' },
         ],
       });
 
-      navigator.mediaSession.setActionHandler('play', () => setIsPlaying(true));
-      navigator.mediaSession.setActionHandler('pause', () => setIsPlaying(false));
+      navigator.mediaSession.setActionHandler('play', () => {
+        setIsPlaying(true);
+        audioRef.current?.play().catch(() => {});
+      });
+      navigator.mediaSession.setActionHandler('pause', () => {
+        setIsPlaying(false);
+        audioRef.current?.pause();
+      });
       navigator.mediaSession.setActionHandler('previoustrack', () => handlePrev());
       navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
       navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime && audioRef.current) {
+        if (details.seekTime !== undefined && audioRef.current) {
           audioRef.current.currentTime = details.seekTime;
           setCurrentTime(details.seekTime);
         }
       });
       navigator.mediaSession.setActionHandler('seekbackward', (details) => {
         const skip = details.seekOffset || 5;
-        if (audioRef.current) audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - skip);
+        if (audioRef.current) {
+          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - skip);
+          setCurrentTime(audioRef.current.currentTime);
+        }
       });
       navigator.mediaSession.setActionHandler('seekforward', (details) => {
         const skip = details.seekOffset || 5;
-        if (audioRef.current) audioRef.current.currentTime = Math.min(duration || 0, audioRef.current.currentTime + skip);
+        if (audioRef.current) {
+          const dur = duration || currentTrack.duration || 0;
+          audioRef.current.currentTime = Math.min(dur, audioRef.current.currentTime + skip);
+          setCurrentTime(audioRef.current.currentTime);
+        }
       });
     } catch (e) {
       // Ignore unsupported action errors
     }
-  }, [currentTrack, duration]);
+  }, [currentTrack, duration, handleNext, handlePrev]);
 
   useEffect(() => {
-    if ('mediaSession' in navigator) {
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
       navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
     }
   }, [isPlaying]);
+
 
 
   const handlePlayPause = () => {
@@ -530,11 +586,12 @@ export default function App() {
       <audio
         ref={audioRef}
         src={currentTrack.audioUrl}
-        preload="metadata"
+        preload="auto"
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
       />
+
 
       <div className={`presence-badge fixed top-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)] ${easterEggActive ? 'presence-badge-unlocked' : ''}`}>
         <span className="relative flex h-2.5 w-2.5">
