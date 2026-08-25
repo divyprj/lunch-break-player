@@ -348,6 +348,16 @@ export default function App() {
   };
 
 
+  // Proactively preload next track into browser memory for 0ms transitions
+  useEffect(() => {
+    const nextTrack = TRACKS[(currentTrackIndex + 1) % TRACKS.length];
+    if (nextTrack) {
+      const preloader = new Audio();
+      preloader.preload = 'auto';
+      preloader.src = nextTrack.audioUrl;
+    }
+  }, [currentTrackIndex]);
+
   const selectTrack = useCallback((index, shouldPlay = true) => {
     const nextIndex = (index + TRACKS.length) % TRACKS.length;
     const targetTrack = TRACKS[nextIndex];
@@ -357,19 +367,6 @@ export default function App() {
     setCurrentTime(0);
     setDuration(targetTrack.duration || 0);
     setIsPlaying(shouldPlay);
-
-    const audio = audioRef.current;
-    if (audio) {
-      // Direct source assignment starts progressive buffering immediately
-      if (audio.src !== targetTrack.audioUrl) {
-        audio.src = targetTrack.audioUrl;
-      }
-      audio.currentTime = 0;
-      applyAudioFade();
-      if (shouldPlay) {
-        audio.play().catch(() => {});
-      }
-    }
 
     // Keep mobile lock-screen & notification widget continuously active without blinking
     if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
@@ -390,7 +387,7 @@ export default function App() {
         // Safe fallback
       }
     }
-  }, [applyAudioFade]);
+  }, []);
 
   const handleNext = useCallback(() => {
     selectTrack(currentTrackIndexRef.current + 1, true);
@@ -408,8 +405,6 @@ export default function App() {
   }, [selectTrack]);
 
   const handleEnded = useCallback(() => {
-    if (audioRef.current) audioRef.current.volume = 0;
-
     if (currentTrackIndexRef.current === TRACKS.length - 1) {
       setIsPlaying(false);
       return;
@@ -417,6 +412,7 @@ export default function App() {
 
     selectTrack(currentTrackIndexRef.current + 1, true);
   }, [selectTrack]);
+
 
   // Native Web MediaSession API handlers & continuous position sync
   useEffect(() => {
@@ -561,10 +557,17 @@ export default function App() {
         ref={audioRef}
         src={currentTrack.audioUrl}
         preload="auto"
+        autoPlay={isPlaying}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
+        onCanPlay={() => {
+          if (isPlaying && audioRef.current?.paused) {
+            audioRef.current.play().catch(() => {});
+          }
+        }}
       />
+
 
 
       <div className={`presence-badge fixed top-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)] ${easterEggActive ? 'presence-badge-unlocked' : ''}`}>
