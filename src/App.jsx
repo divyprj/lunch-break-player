@@ -2,7 +2,6 @@ import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ListMusic, Pause, Play, Search, SkipBack, SkipForward, X } from 'lucide-react';
 import { ALBUMS, TRACKS } from './tracks';
 import lunchBreakBg from './assets/background.webp';
-import nayaabBg from './assets/nayaab-background.webp';
 
 
 
@@ -268,6 +267,9 @@ export default function App() {
   // Keyboard shortcuts and hidden TBSM unlock.
   useEffect(() => {
     const handleKeyDown = (e) => {
+      // Don't trigger shortcuts if user is typing in search input
+      if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
+
       if (e.code === 'Space') {
         e.preventDefault();
         setIsPlaying(prev => !prev);
@@ -320,9 +322,10 @@ export default function App() {
     const audio = audioRef.current;
     if (!audio) return;
 
-    setCurrentTime(audio.currentTime);
-    currentTimeRef.current = audio.currentTime;
-    persistResumeState(currentTrackIndexRef.current, audio.currentTime);
+    const curTime = audio.currentTime;
+    setCurrentTime(curTime);
+    currentTimeRef.current = curTime;
+    persistResumeState(currentTrackIndexRef.current, curTime);
     applyAudioFade();
   };
 
@@ -512,12 +515,8 @@ export default function App() {
       }}
     >
       <div className="fixed inset-0 pointer-events-none overflow-hidden select-none z-0">
-        {/* 1. Lunch Break Background Layer */}
-        <div
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-            currentTrack.album === 'Lunch Break' ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-        >
+        {/* Permanent Default Lunch Break Background Layer */}
+        <div className="absolute inset-0 overflow-hidden">
           <img
             src={lunchBreakBg}
             alt="Seedhe Maut Lunch Break Artwork"
@@ -527,24 +526,7 @@ export default function App() {
               isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'
             }`}
           />
-        </div>
-
-        {/* 2. Nayaab Background Layer */}
-        <div
-          className={`absolute inset-0 transition-opacity duration-1000 ease-in-out ${
-            currentTrack.album === 'Nayaab' ? 'opacity-100' : 'opacity-0 pointer-events-none'
-          }`}
-        >
-          <img
-            src={nayaabBg}
-            alt="Seedhe Maut x Sez on the Beat Nayaab Artwork"
-            decoding="async"
-            loading="lazy"
-            fetchPriority="low"
-            className={`w-full h-full object-cover object-center transition-transform duration-[1400ms] ease-out ${
-              isIdle && !prefersReducedMotion ? 'scale-[1.025]' : 'scale-100'
-            }`}
-          />
+          <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/45" />
         </div>
 
 
@@ -586,7 +568,6 @@ export default function App() {
       </div>
 
       <div className="flex-1" />
-
 
       <div className="player-dock flex w-full justify-center z-20">
         <div ref={playerShellRef} className={`player-shell relative w-full max-w-xl transition-all duration-700 ease-out ${isIdle && !isQueueOpen ? 'translate-y-2 scale-[0.96] opacity-75' : 'translate-y-0 scale-100 opacity-100'}`}>
