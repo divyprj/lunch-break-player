@@ -1,4 +1,4 @@
-// Auto-generated master discography for seedhemaut.fm (158 tracks)
+// Auto-generated master discography for seedhemaut.fm
 import lunchBreakVinyl from './assets/vinyl-cover.jpg';
 import lunchBreakBg from './assets/background.webp';
 import nayaabVinyl from './assets/nayaab-vinyl.jpg';
@@ -28,9 +28,9 @@ export const ALBUMS = {
 export const TRACKS = [
   {
     "id": "sm-seedhe-maut-ab-17-diamond-khapeetar-encore-abj-remix-feat-lil-bhavi-prod-by-premium-dl-91",
-    "title": "Ab 17- DIAMOND KHAPEETAR (Encore ABJ Remix) Feat. LIL BHAVI ｜ Prod. by PREMIUM ｜ DL 91",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Diamond Khapeetar (Encore ABJ Remix)",
+    "artist": "Ab 17, Encore ABJ, Lil Bhavi",
+    "album": "DL91",
     "duration": 159,
     "audioUrl": "/audio/seedhe-maut-ab-17-diamond-khapeetar-encore-abj-remix-feat-lil-bhavi-prod-by-premium-dl-91.m4a",
     "cover": "/covers/seedhe-maut-ab-17-diamond-khapeetar-encore-abj-remix-feat-lil-bhavi-prod-by-premium-dl-91.jpg",
@@ -75,26 +75,10 @@ export const TRACKS = [
     }
   },
   {
-    "id": "sm-seedhe-maut-frappe-ash-toorjo-dey-feat-encore-abj-official-music-video-55-records",
-    "title": "Frappe Ash & toorjo dey Feat. Encore ABJ ｜ Official Music Video ｜ 5.5 Records",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 184,
-    "audioUrl": "/audio/seedhe-maut-frappe-ash-toorjo-dey-feat-encore-abj-official-music-video-55-records.m4a",
-    "cover": "/covers/seedhe-maut-frappe-ash-toorjo-dey-feat-encore-abj-official-music-video-55-records.jpg",
-    "background": "/backgrounds/seedhe-maut-frappe-ash-toorjo-dey-feat-encore-abj-official-music-video-55-records.jpg",
-    "base_name": "BEEN ON - Frappe Ash & toorjo dey Feat. Encore ABJ ｜ Official Music Video ｜ 5.5 Records",
-    "aura": {
-      "accent": "#38bdf8",
-      "tint": "rgba(56, 189, 248, 0.08)",
-      "glow": "rgba(56, 189, 248, 0.32)"
-    }
-  },
-  {
     "id": "sm-seedhe-maut-boombaya-calm-remix",
-    "title": "BOOMBAYA CALM (Remix)",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Boombaya (Calm Remix)",
+    "artist": "Seedhe Maut, Calm",
+    "album": "Singles",
     "duration": 138,
     "audioUrl": "/audio/seedhe-maut-boombaya-calm-remix.m4a",
     "cover": "/covers/seedhe-maut-boombaya-calm-remix.jpg",
@@ -171,22 +155,6 @@ export const TRACKS = [
     }
   },
   {
-    "id": "sm-seedhe-maut-dalli-ft-encore-abj-official-video-prod-by-rij-dl91",
-    "title": "Dalli ft. Encore ABJ ｜ Official Video ｜ PROD. by RIJ ｜ DL91",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 172,
-    "audioUrl": "/audio/seedhe-maut-dalli-ft-encore-abj-official-video-prod-by-rij-dl91.m4a",
-    "cover": "/covers/seedhe-maut-dalli-ft-encore-abj-official-video-prod-by-rij-dl91.jpg",
-    "background": "/backgrounds/seedhe-maut-dalli-ft-encore-abj-official-video-prod-by-rij-dl91.jpg",
-    "base_name": "Bhaskar - Dalli ft. Encore ABJ ｜ Official Video ｜ PROD. by RIJ ｜ DL91",
-    "aura": {
-      "accent": "#4ade80",
-      "tint": "rgba(74, 222, 128, 0.08)",
-      "glow": "rgba(74, 222, 128, 0.30)"
-    }
-  },
-  {
     "id": "sm-bhaskar-dl91-era-encore-abj-rij-dalli",
     "title": "Dalli",
     "artist": "Bhaskar, DL91 Era, Encore ABJ, RiJ",
@@ -200,22 +168,6 @@ export const TRACKS = [
       "accent": "#e879f9",
       "tint": "rgba(232, 121, 249, 0.08)",
       "glow": "rgba(232, 121, 249, 0.30)"
-    }
-  },
-  {
-    "id": "sm-seedhe-maut-dizlaw-x-bhaktaaa-x-calm-official-music-video",
-    "title": "Dizlaw x @bhaktaaa  x Calm (Official Music Video)",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 198,
-    "audioUrl": "/audio/seedhe-maut-dizlaw-x-bhaktaaa-x-calm-official-music-video.m4a",
-    "cover": "/covers/seedhe-maut-dizlaw-x-bhaktaaa-x-calm-official-music-video.jpg",
-    "background": "/backgrounds/seedhe-maut-dizlaw-x-bhaktaaa-x-calm-official-music-video.jpg",
-    "base_name": "CARAMEL TAX - Dizlaw x @bhaktaaa  x Calm (Official Music Video)",
-    "aura": {
-      "accent": "#2dd4bf",
-      "tint": "rgba(45, 212, 191, 0.08)",
-      "glow": "rgba(45, 212, 191, 0.32)"
     }
   },
   {
@@ -299,26 +251,10 @@ export const TRACKS = [
     }
   },
   {
-    "id": "sm-seedhe-maut-chaand-tu-jo-dekh-le-parvana-ep-def-jam-india",
-    "title": "Chaand (Tu Jo Dekh Le) ｜ Parvana EP ｜ Def Jam India",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 406,
-    "audioUrl": "/audio/seedhe-maut-chaand-tu-jo-dekh-le-parvana-ep-def-jam-india.m4a",
-    "cover": "/covers/seedhe-maut-chaand-tu-jo-dekh-le-parvana-ep-def-jam-india.jpg",
-    "background": "/backgrounds/seedhe-maut-chaand-tu-jo-dekh-le-parvana-ep-def-jam-india.jpg",
-    "base_name": "Chaar Diwaari ft. Encore ABJ - Chaand (Tu Jo Dekh Le) ｜ Parvana EP ｜ Def Jam India",
-    "aura": {
-      "accent": "#a855f7",
-      "tint": "rgba(168, 85, 247, 0.08)",
-      "glow": "rgba(168, 85, 247, 0.32)"
-    }
-  },
-  {
     "id": "sm-seedhe-maut-coke-studio-bharat-holi-re-rasiya-maithili-thakur-x-seedhe-maut-x-ravi-kishan-x-mahan",
-    "title": "Coke Studio Bharat ｜ Holi Re Rasiya ｜ Maithili Thakur x Seedhe Maut x Ravi Kishan x Mahan",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Holi Re Rasiya",
+    "artist": "Maithili Thakur, Seedhe Maut, Ravi Kishan",
+    "album": "Coke Studio Bharat",
     "duration": 228,
     "audioUrl": "/audio/seedhe-maut-coke-studio-bharat-holi-re-rasiya-maithili-thakur-x-seedhe-maut-x-ravi-kishan-x-mahan.m4a",
     "cover": "/covers/seedhe-maut-coke-studio-bharat-holi-re-rasiya-maithili-thakur-x-seedhe-maut-x-ravi-kishan-x-mahan.jpg",
@@ -590,7 +526,7 @@ export const TRACKS = [
     "id": "sm-seedhe-maut-hi-ram-remix",
     "title": "Hi Ram (Remix)",
     "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "album": "Singles",
     "duration": 145,
     "audioUrl": "/audio/seedhe-maut-hi-ram-remix.m4a",
     "cover": "/covers/seedhe-maut-hi-ram-remix.jpg",
@@ -604,9 +540,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-bohb-coke-studio-bharat",
-    "title": "Boh!B ｜ Coke Studio Bharat",
+    "title": "BOHB",
     "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "album": "Coke Studio Bharat",
     "duration": 90,
     "audioUrl": "/audio/seedhe-maut-bohb-coke-studio-bharat.m4a",
     "cover": "/covers/seedhe-maut-bohb-coke-studio-bharat.jpg",
@@ -620,9 +556,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-gor3-official-videodir-ishan-khatridl91",
-    "title": "GOR3 (Official Video)⧸dir. Ishan Khatri⧸DL91",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "GOR3",
+    "artist": "Hurricane, Seedhe Maut",
+    "album": "DL91",
     "duration": 103,
     "audioUrl": "/audio/seedhe-maut-gor3-official-videodir-ishan-khatridl91.m4a",
     "cover": "/covers/seedhe-maut-gor3-official-videodir-ishan-khatridl91.jpg",
@@ -652,9 +588,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-og-lucifer-aka-दतय-feat-encore-abj-official-music-video-dl91-hero",
-    "title": "OG Lucifer aka दैत्य (Feat. Encore ABJ)  (Official Music Video) DL91 ｜｜ HERO",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Hero (feat. Encore ABJ)",
+    "artist": "OG Lucifer, Encore ABJ",
+    "album": "DL91",
     "duration": 186,
     "audioUrl": "/audio/seedhe-maut-og-lucifer-aka-दतय-feat-encore-abj-official-music-video-dl91-hero.m4a",
     "cover": "/covers/seedhe-maut-og-lucifer-aka-दतय-feat-encore-abj-official-music-video-dl91-hero.jpg",
@@ -668,9 +604,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-kodak-king-seedhemaut-mm-official-music-video",
-    "title": "KODAK ｜ King & @SeedheMaut ｜ MM ｜ Official Music Video",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Kodak (feat. Seedhe Maut)",
+    "artist": "King, Seedhe Maut",
+    "album": "Monopoly Moves",
     "duration": 376,
     "audioUrl": "/audio/seedhe-maut-kodak-king-seedhemaut-mm-official-music-video.m4a",
     "cover": "/covers/seedhe-maut-kodak-king-seedhemaut-mm-official-music-video.jpg",
@@ -732,9 +668,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-state-of-mind-prod-rij-dl91",
-    "title": "STATE OF MIND ｜ PROD. RiJ ｜ DL91 ｜",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "State Of Mind",
+    "artist": "Lil Bhavi, Seedhe Maut",
+    "album": "71 State of Mind",
     "duration": 138,
     "audioUrl": "/audio/seedhe-maut-state-of-mind-prod-rij-dl91.m4a",
     "cover": "/covers/seedhe-maut-state-of-mind-prod-rij-dl91.jpg",
@@ -860,9 +796,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-yungsta-x-sez-on-the-beat-ft-encore-abj-official-music-video-graveyard-shift",
-    "title": "Yungsta x Sez on the Beat ft. Encore ABJ ｜ Official Music Video ｜ Graveyard Shift",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Graveyard Shift (feat. Encore ABJ)",
+    "artist": "yungsta, Sez on the Beat, Encore ABJ",
+    "album": "Meen",
     "duration": 186,
     "audioUrl": "/audio/seedhe-maut-yungsta-x-sez-on-the-beat-ft-encore-abj-official-music-video-graveyard-shift.m4a",
     "cover": "/covers/seedhe-maut-yungsta-x-sez-on-the-beat-ft-encore-abj-official-music-video-graveyard-shift.jpg",
@@ -1003,22 +939,6 @@ export const TRACKS = [
     }
   },
   {
-    "id": "sm-seedhe-maut-jungli-kutta",
-    "title": "JUNGLI KUTTA",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 233,
-    "audioUrl": "/audio/seedhe-maut-jungli-kutta.m4a",
-    "cover": "/covers/seedhe-maut-jungli-kutta.jpg",
-    "background": "/backgrounds/seedhe-maut-jungli-kutta.jpg",
-    "base_name": "RAWAL x Bharg x Calm x RAGA - JUNGLI KUTTA",
-    "aura": {
-      "accent": "#f59e0b",
-      "tint": "rgba(245, 158, 11, 0.09)",
-      "glow": "rgba(245, 158, 11, 0.35)"
-    }
-  },
-  {
     "id": "sm-raga-encore-abj-hindirapsoldier-sunno",
     "title": "Sunno",
     "artist": "Raga, Encore ABJ, HindiRapSoldier",
@@ -1100,9 +1020,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-haq-se-ft-enkore-ahmer-veni-vidi-vici",
-    "title": "HAQ SE FT. ENKORE, AHMER ｜ VENI VIDI VICI",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Haq Se (feat. Enkore & Ahmer)",
+    "artist": "Smoke, Seedhe Maut",
+    "album": "Veni Vidi Vici",
     "duration": 240,
     "audioUrl": "/audio/seedhe-maut-haq-se-ft-enkore-ahmer-veni-vidi-vici.m4a",
     "cover": "/covers/seedhe-maut-haq-se-ft-enkore-ahmer-veni-vidi-vici.jpg",
@@ -1484,9 +1404,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-hanging-on-audio-from-2-ka-pahada-mixtape",
-    "title": "Hanging On (Audio) [From ＂2 Ka Pahada＂ MixTape]",
+    "title": "Hanging On",
     "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "album": "2 Ka Pahada",
     "duration": 162,
     "audioUrl": "/audio/seedhe-maut-hanging-on-audio-from-2-ka-pahada-mixtape.m4a",
     "cover": "/covers/seedhe-maut-hanging-on-audio-from-2-ka-pahada-mixtape.jpg",
@@ -1580,9 +1500,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-kashmakush-audio-from-2-ka-pahada-mixtape",
-    "title": "Kashmakush (Audio) [From ＂2 Ka Pahada＂ MixTape]",
+    "title": "Kashmakush",
     "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "album": "2 Ka Pahada",
     "duration": 240,
     "audioUrl": "/audio/seedhe-maut-kashmakush-audio-from-2-ka-pahada-mixtape.m4a",
     "cover": "/covers/seedhe-maut-kashmakush-audio-from-2-ka-pahada-mixtape.jpg",
@@ -2315,26 +2235,10 @@ export const TRACKS = [
     }
   },
   {
-    "id": "sm-seedhe-maut-lil-bhavi-ft-encore-abj-official-visualizer-ok-hai-dl-91-prod-by-hisab",
-    "title": "Lil Bhavi Ft. Encore ABJ (Official Visualizer) OK HAI ｜ DL 91 ｜ Prod. by Hisab",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 154,
-    "audioUrl": "/audio/seedhe-maut-lil-bhavi-ft-encore-abj-official-visualizer-ok-hai-dl-91-prod-by-hisab.m4a",
-    "cover": "/covers/seedhe-maut-lil-bhavi-ft-encore-abj-official-visualizer-ok-hai-dl-91-prod-by-hisab.jpg",
-    "background": "/backgrounds/seedhe-maut-lil-bhavi-ft-encore-abj-official-visualizer-ok-hai-dl-91-prod-by-hisab.jpg",
-    "base_name": "TPA TAP - Lil Bhavi Ft. Encore ABJ (Official Visualizer) OK HAI ｜ DL 91 ｜ Prod. by Hisab",
-    "aura": {
-      "accent": "#2dd4bf",
-      "tint": "rgba(45, 212, 191, 0.08)",
-      "glow": "rgba(45, 212, 191, 0.32)"
-    }
-  },
-  {
     "id": "sm-seedhe-maut-og-lucifer-aka-दतय-x-calm-official-video-prodby-calm-naala-paar",
-    "title": "OG Lucifer aka दैत्य X CALM (Official Video) Prod.by CALM ｜｜ NAALA PAAR",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Naala Paar (feat. Calm)",
+    "artist": "OG Lucifer, Calm",
+    "album": "Naala Paar",
     "duration": 195,
     "audioUrl": "/audio/seedhe-maut-og-lucifer-aka-दतय-x-calm-official-video-prodby-calm-naala-paar.m4a",
     "cover": "/covers/seedhe-maut-og-lucifer-aka-दतय-x-calm-official-video-prodby-calm-naala-paar.jpg",
@@ -2364,9 +2268,9 @@ export const TRACKS = [
   },
   {
     "id": "sm-seedhe-maut-breakshit-feat-calm-yashraj-official-audio-amftm-deluxe",
-    "title": "BREAKSHIT!  Feat. Calm, Yashraj ｜ Official Audio ｜ AMFTM Deluxe",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
+    "title": "Breakshit! (feat. Calm & Yashraj)",
+    "artist": "Tsumyoki, Calm, Yashraj",
+    "album": "A Message From The Moon",
     "duration": 243,
     "audioUrl": "/audio/seedhe-maut-breakshit-feat-calm-yashraj-official-audio-amftm-deluxe.m4a",
     "cover": "/covers/seedhe-maut-breakshit-feat-calm-yashraj-official-audio-amftm-deluxe.jpg",
@@ -2376,22 +2280,6 @@ export const TRACKS = [
       "accent": "#ef4444",
       "tint": "rgba(239, 68, 68, 0.08)",
       "glow": "rgba(239, 68, 68, 0.32)"
-    }
-  },
-  {
-    "id": "sm-seedhe-maut-handpump-feat-encore-abj-soumya-rawat",
-    "title": "HANDPUMP feat. Encore ABJ & Soumya Rawat",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 168,
-    "audioUrl": "/audio/seedhe-maut-handpump-feat-encore-abj-soumya-rawat.m4a",
-    "cover": "/covers/seedhe-maut-handpump-feat-encore-abj-soumya-rawat.jpg",
-    "background": "/backgrounds/seedhe-maut-handpump-feat-encore-abj-soumya-rawat.jpg",
-    "base_name": "UNIYAL - HANDPUMP feat. Encore ABJ & Soumya Rawat",
-    "aura": {
-      "accent": "#38bdf8",
-      "tint": "rgba(56, 189, 248, 0.08)",
-      "glow": "rgba(56, 189, 248, 0.32)"
     }
   },
   {
@@ -2504,22 +2392,6 @@ export const TRACKS = [
       "accent": "#e879f9",
       "tint": "rgba(232, 121, 249, 0.08)",
       "glow": "rgba(232, 121, 249, 0.30)"
-    }
-  },
-  {
-    "id": "sm-seedhe-maut-top-floor-shiii-official-video",
-    "title": "TOP FLOOR SHiii (Official Video)",
-    "artist": "Seedhe Maut",
-    "album": "Singles & Features",
-    "duration": 183,
-    "audioUrl": "/audio/seedhe-maut-top-floor-shiii-official-video.m4a",
-    "cover": "/covers/seedhe-maut-top-floor-shiii-official-video.jpg",
-    "background": "/backgrounds/seedhe-maut-top-floor-shiii-official-video.jpg",
-    "base_name": "Yashraj, Calm - TOP FLOOR SHiii (Official Video)",
-    "aura": {
-      "accent": "#2dd4bf",
-      "tint": "rgba(45, 212, 191, 0.08)",
-      "glow": "rgba(45, 212, 191, 0.32)"
     }
   },
   {
