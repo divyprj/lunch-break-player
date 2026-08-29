@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ListMusic, Pause, Play, Search, SkipBack, SkipForward, X } from 'lucide-react';
-import { ALBUMS, TRACKS } from './tracks';
+import { TRACKS } from './tracks';
 import lunchBreakBg from './assets/background.webp';
 
 
@@ -9,7 +9,7 @@ import lunchBreakBg from './assets/background.webp';
 const RESUME_KEY = 'lunch-break-player:resume';
 const IDLE_DELAY_MS = 7000;
 const EASTER_EGG_CODE = 'TBSM';
-const FADE_IN_SECONDS = 2.4;
+const _FADE_IN_SECONDS = 2.4;
 const FADE_OUT_SECONDS = 4.2;
 const FULL_VOLUME = 1.0;
 const PLAYING_VINYL_SPEED = 45;
@@ -49,6 +49,8 @@ export default function App() {
 
   const [currentTrackIndex, setCurrentTrackIndex] = useState(resumeState?.trackIndex ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
+  const [playbackStatus, setPlaybackStatus] = useState('paused');
+  const [playbackError, setPlaybackError] = useState(null);
   const [currentTime, setCurrentTime] = useState(resumeState?.currentTime ?? 0);
   const [duration, setDuration] = useState(TRACKS[resumeState?.trackIndex ?? 0]?.duration ?? 0);
   const [onlineCount, setOnlineCount] = useState(22);
@@ -74,6 +76,21 @@ export default function App() {
   const currentTrackIndexRef = useRef(currentTrackIndex);
   const currentTimeRef = useRef(currentTime);
   const lastPersistAtRef = useRef(0);
+  const playIntentRef = useRef(false);
+  const playbackGenerationRef = useRef(0);
+  const preloaderRef = useRef(null);
+  const preloadTimerRef = useRef(null);
+
+  const setPlaybackIntent = useCallback((nextOrUpdater) => {
+    const next =
+      typeof nextOrUpdater === 'function'
+        ? Boolean(nextOrUpdater(playIntentRef.current))
+        : Boolean(nextOrUpdater);
+
+    playIntentRef.current = next;
+    setIsPlaying(next);
+    return next;
+  }, []);
 
   const currentTrack = TRACKS[currentTrackIndex] || TRACKS[0];
   const currentAura = currentTrack.aura || TRACKS[0].aura;
@@ -154,25 +171,82 @@ export default function App() {
     return () => mediaQuery.removeListener(handleMotionChange);
   }, []);
 
-  // Sync audio play/pause.
+  // Central Single-Source-of-Truth Audio Controller Effect
   useEffect(() => {
     const audio = audioRef.current;
-    if (!audio) return;
+    if (!audio) return undefined;
 
-    if (isPlaying) {
-      audio.volume = FULL_VOLUME;
-      const playPromise = audio.play();
-      if (playPromise !== undefined) {
-        playPromise.catch((err) => {
-          if (err?.name !== 'AbortError') {
-            setIsPlaying(false);
-          }
-        });
-      }
-    } else {
+    const generation = ++playbackGenerationRef.current;
+
+    const targetSrc = new URL(
+      currentTrack.audioUrl,
+      window.location.href,
+    ).href;
+
+    const sourceChanged =
+      audio.currentSrc !== targetSrc &&
+      audio.src !== targetSrc;
+
+    setPlaybackError(null);
+
+    if (sourceChanged) {
       audio.pause();
+      audio.src = currentTrack.audioUrl;
+      audio.load();
+      setPlaybackStatus('loading');
     }
-  }, [currentTrackIndex, isPlaying]);
+
+    if (!isPlaying) {
+      audio.pause();
+      if (!sourceChanged) {
+        setPlaybackStatus('paused');
+      }
+      return () => {
+        if (playbackGenerationRef.current === generation) {
+          playbackGenerationRef.current += 1;
+        }
+      };
+    }
+
+    audio.volume = FULL_VOLUME;
+
+    if (audio.readyState < HTMLMediaElement.HAVE_FUTURE_DATA) {
+      setPlaybackStatus(sourceChanged ? 'loading' : 'buffering');
+    }
+
+    const startPlayback = async () => {
+      try {
+        await audio.play();
+        if (generation !== playbackGenerationRef.current) return;
+        setPlaybackStatus('playing');
+      } catch (error) {
+        if (generation !== playbackGenerationRef.current) return;
+
+        if (error?.name === 'AbortError') {
+          return;
+        }
+
+        if (error?.name === 'NotAllowedError') {
+          setPlaybackIntent(false);
+          setPlaybackStatus('paused');
+          return;
+        }
+
+        console.error('Audio playback failed:', error);
+        setPlaybackError(error);
+        setPlaybackIntent(false);
+        setPlaybackStatus('error');
+      }
+    };
+
+    startPlayback();
+
+    return () => {
+      if (playbackGenerationRef.current === generation) {
+        playbackGenerationRef.current += 1;
+      }
+    };
+  }, [currentTrack.audioUrl, isPlaying, setPlaybackIntent]);
 
 
 
@@ -272,7 +346,7 @@ export default function App() {
 
       if (e.code === 'Space') {
         e.preventDefault();
-        setIsPlaying(prev => !prev);
+        setPlaybackIntent(prev => !prev);
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
         if (audioRef.current) audioRef.current.currentTime += 5;
@@ -294,7 +368,7 @@ export default function App() {
 
     window.addEventListener('keydown', handleKeyDown);
     return () => window.removeEventListener('keydown', handleKeyDown);
-  }, [triggerEasterEgg]);
+  }, [setPlaybackIntent, triggerEasterEgg]);
 
   // Persist listening position without adding visible UI.
   useEffect(() => {
@@ -314,8 +388,15 @@ export default function App() {
   useEffect(() => () => {
     window.clearTimeout(idleTimerRef.current);
     window.clearTimeout(easterEggTimerRef.current);
+    window.clearTimeout(preloadTimerRef.current);
     window.cancelAnimationFrame(fadeFrameRef.current);
     window.cancelAnimationFrame(vinylFrameRef.current);
+    if (preloaderRef.current) {
+      preloaderRef.current.pause();
+      preloaderRef.current.removeAttribute('src');
+      preloaderRef.current.load();
+      preloaderRef.current = null;
+    }
   }, []);
 
   const handleTimeUpdate = () => {
@@ -327,6 +408,25 @@ export default function App() {
     currentTimeRef.current = curTime;
     persistResumeState(currentTrackIndexRef.current, curTime);
     applyAudioFade();
+
+    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
+      const mediaDuration = audio.duration;
+      if (
+        Number.isFinite(mediaDuration) &&
+        mediaDuration > 0 &&
+        Number.isFinite(curTime)
+      ) {
+        try {
+          navigator.mediaSession.setPositionState({
+            duration: mediaDuration,
+            playbackRate: audio.playbackRate || 1,
+            position: Math.min(Math.max(0, curTime), mediaDuration),
+          });
+        } catch {
+          // Ignore intermediate or unsupported state errors
+        }
+      }
+    }
   };
 
   const handleLoadedMetadata = () => {
@@ -356,46 +456,72 @@ export default function App() {
   };
 
 
-  // Proactively preload next track into browser memory for 0ms transitions
+  // Metadata-only next track warm-up (with 2s debounce and explicit cancellation)
   useEffect(() => {
-    const nextTrack = TRACKS[(currentTrackIndex + 1) % TRACKS.length];
-    if (nextTrack) {
-      const preloader = new Audio();
-      preloader.preload = 'auto';
-      preloader.src = nextTrack.audioUrl;
+    window.clearTimeout(preloadTimerRef.current);
+
+    const existing = preloaderRef.current;
+    if (existing) {
+      existing.pause();
+      existing.removeAttribute('src');
+      existing.load();
+      preloaderRef.current = null;
     }
-  }, [currentTrackIndex]);
+
+    if (playbackStatus !== 'playing') {
+      return undefined;
+    }
+
+    const connection =
+      typeof navigator !== 'undefined'
+        ? navigator.connection || navigator.mozConnection || navigator.webkitConnection
+        : null;
+
+    if (connection?.saveData || connection?.effectiveType === 'slow-2g' || connection?.effectiveType === '2g') {
+      return undefined;
+    }
+
+    const nextIndex = (currentTrackIndexRef.current + 1) % TRACKS.length;
+    const nextTrack = TRACKS[nextIndex];
+    if (!nextTrack) return undefined;
+
+    preloadTimerRef.current = window.setTimeout(() => {
+      const preloader = new Audio();
+      preloader.preload = 'metadata';
+      preloader.src = nextTrack.audioUrl;
+      preloader.load();
+      preloaderRef.current = preloader;
+    }, 2000);
+
+    return () => {
+      window.clearTimeout(preloadTimerRef.current);
+      const preloader = preloaderRef.current;
+      if (preloader) {
+        preloader.pause();
+        preloader.removeAttribute('src');
+        preloader.load();
+        preloaderRef.current = null;
+      }
+    };
+  }, [currentTrackIndex, playbackStatus]);
 
   const selectTrack = useCallback((index, shouldPlay = true) => {
     const nextIndex = (index + TRACKS.length) % TRACKS.length;
     const targetTrack = TRACKS[nextIndex];
     if (!targetTrack) return;
 
+    // CRITICAL: Update imperative refs BEFORE scheduling React state.
+    // Rapid Next/Prev/Ended/MediaSession calls now see the new index instantly.
+    currentTrackIndexRef.current = nextIndex;
+    currentTimeRef.current = 0;
+    didRestoreResumeRef.current = true;
+
     setCurrentTrackIndex(nextIndex);
     setCurrentTime(0);
     setDuration(targetTrack.duration || 0);
-    setIsPlaying(shouldPlay);
 
-    // Keep mobile lock-screen & notification widget continuously active without blinking
-    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
-      try {
-        const absoluteCover = new URL(targetTrack.cover, window.location.href).href;
-        const absoluteBg = new URL(targetTrack.background, window.location.href).href;
-        navigator.mediaSession.metadata = new window.MediaMetadata({
-          title: targetTrack.title,
-          artist: targetTrack.artist,
-          album: targetTrack.album || 'Seedhe Maut',
-          artwork: [
-            { src: absoluteCover, sizes: '512x512', type: 'image/jpeg' },
-            { src: absoluteBg, sizes: '1920x1080', type: 'image/webp' },
-          ],
-        });
-        navigator.mediaSession.playbackState = shouldPlay ? 'playing' : 'paused';
-      } catch (e) {
-        // Safe fallback
-      }
-    }
-  }, []);
+    setPlaybackIntent(shouldPlay);
+  }, [setPlaybackIntent]);
 
   const handleNext = useCallback(() => {
     selectTrack(currentTrackIndexRef.current + 1, true);
@@ -405,24 +531,25 @@ export default function App() {
     const audio = audioRef.current;
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
+      currentTimeRef.current = 0;
       setCurrentTime(0);
-      audio.play().catch(() => {});
-    } else {
-      selectTrack(currentTrackIndexRef.current - 1, true);
-    }
-  }, [selectTrack]);
-
-  const handleEnded = useCallback(() => {
-    if (currentTrackIndexRef.current === TRACKS.length - 1) {
-      setIsPlaying(false);
+      setPlaybackIntent(true);
       return;
     }
+    selectTrack(currentTrackIndexRef.current - 1, true);
+  }, [selectTrack, setPlaybackIntent]);
 
-    selectTrack(currentTrackIndexRef.current + 1, true);
-  }, [selectTrack]);
+  const handleEnded = useCallback(() => {
+    const endedIndex = currentTrackIndexRef.current;
+    if (endedIndex >= TRACKS.length - 1) {
+      setPlaybackIntent(false);
+      setPlaybackStatus('paused');
+      return;
+    }
+    selectTrack(endedIndex + 1, true);
+  }, [selectTrack, setPlaybackIntent]);
 
-
-  // Native Web MediaSession API handlers & continuous position sync
+  // Native Web MediaSession metadata
   useEffect(() => {
     if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
 
@@ -438,58 +565,104 @@ export default function App() {
           { src: absoluteBg, sizes: '1920x1080', type: 'image/webp' },
         ],
       });
-
-      navigator.mediaSession.setActionHandler('play', () => {
-        setIsPlaying(true);
-        audioRef.current?.play().catch(() => {});
-      });
-      navigator.mediaSession.setActionHandler('pause', () => {
-        setIsPlaying(false);
-        audioRef.current?.pause();
-      });
-      navigator.mediaSession.setActionHandler('previoustrack', () => handlePrev());
-      navigator.mediaSession.setActionHandler('nexttrack', () => handleNext());
-      navigator.mediaSession.setActionHandler('seekto', (details) => {
-        if (details.seekTime !== undefined && audioRef.current) {
-          audioRef.current.currentTime = details.seekTime;
-          setCurrentTime(details.seekTime);
-        }
-      });
-      navigator.mediaSession.setActionHandler('seekbackward', (details) => {
-        const skip = details.seekOffset || 5;
-        if (audioRef.current) {
-          audioRef.current.currentTime = Math.max(0, audioRef.current.currentTime - skip);
-          setCurrentTime(audioRef.current.currentTime);
-        }
-      });
-      navigator.mediaSession.setActionHandler('seekforward', (details) => {
-        const skip = details.seekOffset || 5;
-        if (audioRef.current) {
-          const dur = duration || currentTrack.duration || 0;
-          audioRef.current.currentTime = Math.min(dur, audioRef.current.currentTime + skip);
-          setCurrentTime(audioRef.current.currentTime);
-        }
-      });
-    } catch (e) {
-      // Ignore unsupported action errors
+    } catch {
+      // Safe fallback
     }
-  }, [currentTrack, duration, handleNext, handlePrev]);
+  }, [currentTrack]);
 
+  // Native Web MediaSession action handlers (dispatch INTENT only)
   useEffect(() => {
-    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
-      navigator.mediaSession.playbackState = isPlaying ? 'playing' : 'paused';
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return undefined;
+
+    const mediaSession = navigator.mediaSession;
+    const register = (action, handler) => {
+      try {
+        mediaSession.setActionHandler(action, handler);
+      } catch {
+        // Unsupported action in browser
+      }
+    };
+
+    register('play', () => setPlaybackIntent(true));
+    register('pause', () => setPlaybackIntent(false));
+    register('previoustrack', handlePrev);
+    register('nexttrack', handleNext);
+
+    register('seekto', (details) => {
+      const audio = audioRef.current;
+      if (!audio || details.seekTime == null) return;
+      const curDur = Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : TRACKS[currentTrackIndexRef.current]?.duration || 0;
+      const nextTime = Math.max(0, Math.min(details.seekTime, curDur));
+      if (details.fastSeek && typeof audio.fastSeek === 'function') {
+        audio.fastSeek(nextTime);
+      } else {
+        audio.currentTime = nextTime;
+      }
+      currentTimeRef.current = nextTime;
+      setCurrentTime(nextTime);
+    });
+
+    register('seekbackward', (details) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const offset = details.seekOffset || 5;
+      const nextTime = Math.max(0, audio.currentTime - offset);
+      audio.currentTime = nextTime;
+      currentTimeRef.current = nextTime;
+      setCurrentTime(nextTime);
+    });
+
+    register('seekforward', (details) => {
+      const audio = audioRef.current;
+      if (!audio) return;
+      const curDur = Number.isFinite(audio.duration) && audio.duration > 0
+        ? audio.duration
+        : TRACKS[currentTrackIndexRef.current]?.duration || 0;
+      const offset = details.seekOffset || 5;
+      const nextTime = Math.min(curDur, audio.currentTime + offset);
+      audio.currentTime = nextTime;
+      currentTimeRef.current = nextTime;
+      setCurrentTime(nextTime);
+    });
+
+    return () => {
+      ['play', 'pause', 'previoustrack', 'nexttrack', 'seekto', 'seekbackward', 'seekforward'].forEach((action) => {
+        try {
+          mediaSession.setActionHandler(action, null);
+        } catch {
+          // ignore
+        }
+      });
+    };
+  }, [handleNext, handlePrev, setPlaybackIntent]);
+
+  // Sync MediaSession playbackState with actual playback status
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return;
+    try {
+      if (playbackStatus === 'playing' || (playbackStatus === 'buffering' && playIntentRef.current)) {
+        navigator.mediaSession.playbackState = 'playing';
+      } else {
+        navigator.mediaSession.playbackState = 'paused';
+      }
+    } catch {
+      // ignore
     }
-  }, [isPlaying]);
-
-
+  }, [playbackStatus]);
 
   const handlePlayPause = () => {
-    if (!isPlaying && audioRef.current && duration && audioRef.current.currentTime >= duration - 0.35) {
-      audioRef.current.currentTime = 0;
+    const audio = audioRef.current;
+    const nextIntent = !playIntentRef.current;
+
+    if (nextIntent && audio && duration && audio.currentTime >= duration - 0.35) {
+      audio.currentTime = 0;
+      currentTimeRef.current = 0;
       setCurrentTime(0);
     }
 
-    setIsPlaying(prev => !prev);
+    setPlaybackIntent(nextIntent);
   };
 
   const handleSeek = (e) => {
@@ -505,6 +678,7 @@ export default function App() {
   };
 
   const progressPercent = duration ? (currentTime / duration) * 100 : 0;
+  const isBuffering = playbackStatus === 'loading' || playbackStatus === 'buffering';
 
   return (
     <main
@@ -542,15 +716,39 @@ export default function App() {
 
       <audio
         ref={audioRef}
-        src={currentTrack.audioUrl}
         preload="auto"
-        autoPlay={isPlaying}
         onTimeUpdate={handleTimeUpdate}
         onLoadedMetadata={handleLoadedMetadata}
         onEnded={handleEnded}
-        onCanPlay={() => {
-          if (isPlaying && audioRef.current?.paused) {
-            audioRef.current.play().catch(() => {});
+        onLoadStart={() => {
+          setPlaybackStatus('loading');
+        }}
+        onWaiting={() => {
+          if (playIntentRef.current) {
+            setPlaybackStatus('buffering');
+          }
+        }}
+        onStalled={() => {
+          if (playIntentRef.current) {
+            setPlaybackStatus('buffering');
+          }
+        }}
+        onPlaying={() => {
+          setPlaybackStatus('playing');
+          setPlaybackError(null);
+        }}
+        onPause={() => {
+          if (!playIntentRef.current) {
+            setPlaybackStatus('paused');
+          }
+        }}
+        onError={() => {
+          const mediaError = audioRef.current?.error;
+          if (mediaError) {
+            console.error('HTMLAudioElement error:', mediaError);
+            setPlaybackError(mediaError);
+            setPlaybackStatus('error');
+            setPlaybackIntent(false);
           }
         }}
       />
@@ -637,7 +835,7 @@ export default function App() {
                       >
                         {/* Number or Equalizer */}
                         <div className="w-6 shrink-0 flex items-center justify-center">
-                          {isSelected && isPlaying ? (
+                          {isSelected && (playbackStatus === 'playing' || (playbackStatus === 'buffering' && isPlaying)) ? (
                             <div className="flex items-end gap-0.5 h-3.5">
                               <span className="eq-bar-1 w-0.5 rounded-full bg-[#00E575]" />
                               <span className="eq-bar-2 w-0.5 rounded-full bg-[#00E575]" />
@@ -744,8 +942,18 @@ export default function App() {
                   />
                 </div>
 
-                <div className="mt-1 text-left text-[11px] tabular-nums font-mono text-white/60">
-                  {formatTime(currentTime)} / {formatTime(duration)}
+                <div className="mt-1 flex items-center justify-between text-[11px] tabular-nums font-mono text-white/60">
+                  <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
+                  {isBuffering && isPlaying && (
+                    <span className="text-[10px] text-amber-300/90 font-medium animate-pulse" aria-live="polite">
+                      Buffering…
+                    </span>
+                  )}
+                  {playbackStatus === 'error' && (
+                    <span className="text-[10px] text-rose-400 font-medium" title={playbackError?.message || ''} aria-live="polite">
+                      Unable to load audio
+                    </span>
+                  )}
                 </div>
               </div>
             </div>
