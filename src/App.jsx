@@ -3,16 +3,18 @@ import { ListMusic, Pause, Play, Search, SkipBack, SkipForward, X } from 'lucide
 import { TRACKS } from './tracks';
 import lunchBreakBg from './assets/background.webp';
 
-
-
-
 const RESUME_KEY = 'lunch-break-player:resume';
 const IDLE_DELAY_MS = 7000;
 const EASTER_EGG_CODE = 'TBSM';
-const _FADE_IN_SECONDS = 2.4;
 const FADE_OUT_SECONDS = 4.2;
 const FULL_VOLUME = 1.0;
-const PLAYING_VINYL_SPEED = 45;
+
+function formatTime(secs) {
+  if (!Number.isFinite(secs) || secs < 0) return '0:00';
+  const minutes = Math.floor(secs / 60);
+  const seconds = Math.floor(secs % 60);
+  return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
+}
 
 const readResumeState = () => {
   if (typeof window === 'undefined') return null;
@@ -38,8 +40,217 @@ const readResumeState = () => {
   return null;
 };
 
-const getFadeVolume = () => FULL_VOLUME;
+// Isolated, High-Performance Progress Bar with Direct DOM Transforms & Off-Thread GPU Scaling
+const AudioProgressBar = React.memo(function AudioProgressBar({
+  audioRef,
+  duration,
+  accentColor,
+  playbackStatus,
+  isPlaying,
+  playbackError,
+  onSeek,
+}) {
+  const barRef = useRef(null);
+  const fillRef = useRef(null);
+  const thumbRef = useRef(null);
+  const timeLabelRef = useRef(null);
 
+  useEffect(() => {
+    const audio = audioRef.current;
+    if (!audio) return undefined;
+
+    const updateDOM = () => {
+      const cur = audio.currentTime || 0;
+      const dur = duration || audio.duration || 0;
+      const fraction = dur > 0 ? Math.min(1, Math.max(0, cur / dur)) : 0;
+      const pct = fraction * 100;
+
+      if (fillRef.current) {
+        fillRef.current.style.transform = `scaleX(${fraction})`;
+      }
+      if (thumbRef.current) {
+        thumbRef.current.style.left = `${pct}%`;
+      }
+      if (timeLabelRef.current) {
+        timeLabelRef.current.textContent = `${formatTime(cur)} / ${formatTime(dur)}`;
+      }
+    };
+
+    audio.addEventListener('timeupdate', updateDOM, { passive: true });
+    updateDOM();
+
+    return () => {
+      audio.removeEventListener('timeupdate', updateDOM);
+    };
+  }, [audioRef, duration]);
+
+  const handleBarClick = (e) => {
+    if (!barRef.current || !audioRef.current) return;
+    const rect = barRef.current.getBoundingClientRect();
+    const fraction = Math.max(0, Math.min(1, (e.clientX - rect.left) / rect.width));
+    onSeek(fraction);
+  };
+
+  const isBuffering = playbackStatus === 'loading' || playbackStatus === 'buffering';
+
+  return (
+    <div className="mt-2">
+      <div
+        ref={barRef}
+        onClick={handleBarClick}
+        className="group/bar relative h-2.5 w-full cursor-pointer flex items-center"
+        role="slider"
+        aria-label="Seek"
+      >
+        <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
+          <div
+            ref={fillRef}
+            className="h-full w-full rounded-full origin-left transition-colors duration-700"
+            style={{
+              transform: 'scaleX(0)',
+              backgroundColor: accentColor,
+              willChange: 'transform',
+            }}
+          />
+        </div>
+        <div
+          ref={thumbRef}
+          className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 shadow transition-opacity group-hover/bar:opacity-100 pointer-events-none"
+          style={{
+            left: '0%',
+            backgroundColor: accentColor,
+          }}
+        />
+      </div>
+
+      <div className="mt-1 flex items-center justify-between text-[11px] tabular-nums font-mono text-white/60">
+        <span ref={timeLabelRef}>0:00 / {formatTime(duration)}</span>
+        {isBuffering && isPlaying && (
+          <span className="text-[10px] text-amber-300/90 font-medium animate-pulse" aria-live="polite">
+            Buffering…
+          </span>
+        )}
+        {playbackStatus === 'error' && (
+          <span className="text-[10px] text-rose-400 font-medium" title={playbackError?.message || ''} aria-live="polite">
+            Unable to load audio
+          </span>
+        )}
+      </div>
+    </div>
+  );
+});
+
+// Memoized Tracklist Drawer (Rendered only when open)
+const TrackDrawer = React.memo(function TrackDrawer({
+  isOpen,
+  onClose,
+  searchQuery,
+  onSearchChange,
+  onClearSearch,
+  filteredTracks,
+  currentTrackIndex,
+  isPlaying,
+  playbackStatus,
+  onSelectTrack,
+  searchInputRef,
+  activeTrackRowRef,
+}) {
+  if (!isOpen) return null;
+
+  return (
+    <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[60vh] md:max-h-[52vh] overflow-hidden rounded-[28px] border border-white/20 bg-black/65 p-3.5 shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-3xl backdrop-saturate-200 flex flex-col z-30">
+      {/* Drawer Header & Real-Time Search */}
+      <div className="flex items-center gap-2.5 pb-2.5 border-b border-white/10 px-1">
+        <div className="relative flex-1 flex items-center">
+          <Search size={14} className="absolute left-3.5 text-white/40 pointer-events-none" />
+          <input
+            ref={searchInputRef}
+            type="text"
+            value={searchQuery}
+            onChange={(e) => onSearchChange(e.target.value)}
+            placeholder="Search tracks..."
+            className="w-full bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/15 focus:border-white/30 rounded-full pl-9 pr-8 py-2 text-[13px] text-white placeholder-white/40 outline-none transition duration-200"
+          />
+          {searchQuery && (
+            <button
+              type="button"
+              onClick={onClearSearch}
+              className="absolute right-3 text-white/50 hover:text-white"
+            >
+              <X size={13} />
+            </button>
+          )}
+        </div>
+
+        <button
+          type="button"
+          onClick={onClose}
+          aria-label="Close tracklist"
+          className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition active:scale-95 border-0 outline-none shrink-0"
+        >
+          <X size={16} />
+        </button>
+      </div>
+
+      {/* Scrollable Clean Tracklist */}
+      <div className="queue-scroll mt-2 max-h-[calc(60vh-4.5rem)] md:max-h-[calc(52vh-4.5rem)] overflow-y-auto pr-1 space-y-1">
+        {filteredTracks.length === 0 ? (
+          <div className="py-10 text-center text-xs text-white/40 font-mono">
+            No tracks found matching "{searchQuery}"
+          </div>
+        ) : (
+          filteredTracks.map(({ track, index }) => {
+            const isSelected = index === currentTrackIndex;
+            return (
+              <button
+                type="button"
+                key={track.id}
+                ref={isSelected ? activeTrackRowRef : null}
+                onClick={() => onSelectTrack(index)}
+                aria-current={isSelected ? 'true' : undefined}
+                className={`group/row flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-white transition-all duration-200 ${
+                  isSelected
+                    ? 'bg-white/18 border border-white/25 shadow-sm'
+                    : 'hover:bg-white/10 border border-transparent'
+                }`}
+              >
+                {/* Number or Equalizer */}
+                <div className="w-6 shrink-0 flex items-center justify-center">
+                  {isSelected && (playbackStatus === 'playing' || (playbackStatus === 'buffering' && isPlaying)) ? (
+                    <div className="flex items-end gap-0.5 h-3.5">
+                      <span className="eq-bar-1 w-0.5 rounded-full bg-[#00E575]" />
+                      <span className="eq-bar-2 w-0.5 rounded-full bg-[#00E575]" />
+                      <span className="eq-bar-3 w-0.5 rounded-full bg-[#00E575]" />
+                    </div>
+                  ) : (
+                    <span className={`text-[11px] font-mono tabular-nums ${isSelected ? 'text-white font-bold' : 'text-white/40 group-hover/row:text-white/70'}`}>
+                      {String(index + 1).padStart(2, '0')}
+                    </span>
+                  )}
+                </div>
+
+                {/* Title & Artist */}
+                <div className="min-w-0 flex-1">
+                  <div className={`truncate text-[13px] font-medium leading-snug ${isSelected ? 'text-white font-semibold' : 'text-white/90'}`}>
+                    {track.title}
+                  </div>
+                  <div className="truncate text-[11px] text-white/50 leading-none mt-0.5">
+                    {track.artist}
+                  </div>
+                </div>
+
+                {/* Duration */}
+                <span className="text-[11px] font-mono tabular-nums text-white/40 group-hover/row:text-white/70 shrink-0">
+                  {formatTime(track.duration)}
+                </span>
+              </button>
+            );
+          })
+        )}
+      </div>
+    </div>
+  );
+});
 
 export default function App() {
   const resumeState = useMemo(() => readResumeState(), []);
@@ -47,11 +258,11 @@ export default function App() {
   const resumeTimeRef = useRef(resumeState?.currentTime ?? 0);
   const didRestoreResumeRef = useRef(false);
 
+  // Coarse player state (Only triggers re-renders on genuine user actions/events)
   const [currentTrackIndex, setCurrentTrackIndex] = useState(resumeState?.trackIndex ?? 0);
   const [isPlaying, setIsPlaying] = useState(false);
   const [playbackStatus, setPlaybackStatus] = useState('paused');
   const [playbackError, setPlaybackError] = useState(null);
-  const [currentTime, setCurrentTime] = useState(resumeState?.currentTime ?? 0);
   const [duration, setDuration] = useState(TRACKS[resumeState?.trackIndex ?? 0]?.duration ?? 0);
   const [onlineCount, setOnlineCount] = useState(22);
   const [isIdle, setIsIdle] = useState(false);
@@ -61,20 +272,14 @@ export default function App() {
   const [prefersReducedMotion, setPrefersReducedMotion] = useState(false);
 
   const audioRef = useRef(null);
-  const progressBarRef = useRef(null);
   const playerShellRef = useRef(null);
   const searchInputRef = useRef(null);
   const activeTrackRowRef = useRef(null);
   const idleTimerRef = useRef(null);
   const easterEggTimerRef = useRef(null);
   const keyBufferRef = useRef('');
-  const fadeFrameRef = useRef(null);
-  const vinylRef = useRef(null);
-  const vinylFrameRef = useRef(null);
-  const vinylAngleRef = useRef(0);
-  const vinylVelocityRef = useRef(0);
   const currentTrackIndexRef = useRef(currentTrackIndex);
-  const currentTimeRef = useRef(currentTime);
+  const currentTimeRef = useRef(resumeState?.currentTime ?? 0);
   const lastPersistAtRef = useRef(0);
   const playIntentRef = useRef(false);
   const playbackGenerationRef = useRef(0);
@@ -106,9 +311,7 @@ export default function App() {
     );
   }, [searchQuery]);
 
-
-
-  // Scroll current track into view when drawer opens (without popping mobile keyboard)
+  // Scroll current track into view when drawer opens
   useEffect(() => {
     if (isQueueOpen) {
       setTimeout(() => {
@@ -116,24 +319,6 @@ export default function App() {
       }, 50);
     }
   }, [isQueueOpen]);
-
-
-
-  const formatTime = useCallback((secs) => {
-    if (!Number.isFinite(secs) || secs < 0) return '0:00';
-    const minutes = Math.floor(secs / 60);
-    const seconds = Math.floor(secs % 60);
-    return `${minutes}:${seconds < 10 ? '0' : ''}${seconds}`;
-  }, []);
-
-
-  const applyAudioFade = useCallback(() => {
-    const audio = audioRef.current;
-    if (!audio) return;
-
-    const totalDuration = audio.duration || duration || currentTrack.duration || 0;
-    audio.volume = getFadeVolume(audio.currentTime, totalDuration);
-  }, [currentTrack.duration, duration]);
 
   const persistResumeState = useCallback((trackIndex, trackTime, force = false) => {
     if (typeof window === 'undefined') return;
@@ -154,8 +339,7 @@ export default function App() {
 
   useEffect(() => {
     currentTrackIndexRef.current = currentTrackIndex;
-    currentTimeRef.current = currentTime;
-  }, [currentTime, currentTrackIndex]);
+  }, [currentTrackIndex]);
 
   useEffect(() => {
     const mediaQuery = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -248,48 +432,7 @@ export default function App() {
     };
   }, [currentTrack.audioUrl, isPlaying, setPlaybackIntent]);
 
-
-
-  // Vinyl inertia: ease toward full speed while playing, coast down on pause.
-  useEffect(() => {
-    if (prefersReducedMotion) {
-      window.cancelAnimationFrame(vinylFrameRef.current);
-      vinylVelocityRef.current = 0;
-      return undefined;
-    }
-
-    let lastFrame = performance.now();
-
-    const tick = (timestamp) => {
-      const delta = Math.min(64, timestamp - lastFrame) / 1000;
-      lastFrame = timestamp;
-
-      const targetSpeed = isPlaying ? PLAYING_VINYL_SPEED : 0;
-      const ease = isPlaying ? 5.5 : 2.2;
-      vinylVelocityRef.current += (
-        targetSpeed - vinylVelocityRef.current
-      ) * Math.min(1, delta * ease);
-      vinylAngleRef.current = (
-        vinylAngleRef.current + vinylVelocityRef.current * delta
-      ) % 360;
-
-      if (vinylRef.current) {
-        vinylRef.current.style.transform = `rotate(${vinylAngleRef.current}deg)`;
-      }
-
-      if (isPlaying || vinylVelocityRef.current > 0.08) {
-        vinylFrameRef.current = window.requestAnimationFrame(tick);
-      }
-    };
-
-    window.cancelAnimationFrame(vinylFrameRef.current);
-    vinylFrameRef.current = window.requestAnimationFrame(tick);
-    return () => window.cancelAnimationFrame(vinylFrameRef.current);
-  }, [isPlaying, prefersReducedMotion]);
-
-  // Dynamic presence count fluctuation.
-
-
+  // Dynamic presence count fluctuation
   useEffect(() => {
     const interval = setInterval(() => {
       setOnlineCount(prev => Math.max(12, prev + (Math.random() > 0.5 ? 1 : -1)));
@@ -297,7 +440,7 @@ export default function App() {
     return () => clearInterval(interval);
   }, []);
 
-  // Idle cinematic mode.
+  // Idle cinematic mode
   useEffect(() => {
     const resetIdleTimer = () => {
       setIsIdle(false);
@@ -317,7 +460,7 @@ export default function App() {
     };
   }, [isQueueOpen]);
 
-  // Close the hidden queue from outside clicks.
+  // Close the hidden queue from outside clicks
   useEffect(() => {
     if (!isQueueOpen) return undefined;
 
@@ -338,10 +481,9 @@ export default function App() {
     easterEggTimerRef.current = window.setTimeout(() => setEasterEggActive(false), 2400);
   }, []);
 
-  // Keyboard shortcuts and hidden TBSM unlock.
+  // Keyboard shortcuts
   useEffect(() => {
     const handleKeyDown = (e) => {
-      // Don't trigger shortcuts if user is typing in search input
       if (e.target instanceof HTMLInputElement || e.target instanceof HTMLTextAreaElement) return;
 
       if (e.code === 'Space') {
@@ -349,10 +491,18 @@ export default function App() {
         setPlaybackIntent(prev => !prev);
       } else if (e.code === 'ArrowRight') {
         e.preventDefault();
-        if (audioRef.current) audioRef.current.currentTime += 5;
+        if (audioRef.current) {
+          const next = audioRef.current.currentTime + 5;
+          audioRef.current.currentTime = next;
+          currentTimeRef.current = next;
+        }
       } else if (e.code === 'ArrowLeft') {
         e.preventDefault();
-        if (audioRef.current) audioRef.current.currentTime -= 5;
+        if (audioRef.current) {
+          const next = Math.max(0, audioRef.current.currentTime - 5);
+          audioRef.current.currentTime = next;
+          currentTimeRef.current = next;
+        }
       } else if (e.code === 'Escape') {
         setIsQueueOpen(false);
       }
@@ -370,27 +520,21 @@ export default function App() {
     return () => window.removeEventListener('keydown', handleKeyDown);
   }, [setPlaybackIntent, triggerEasterEgg]);
 
-  // Persist listening position without adding visible UI.
-  useEffect(() => {
-    persistResumeState(currentTrackIndex, currentTime);
-  }, [currentTime, currentTrackIndex, persistResumeState]);
-
+  // Persist listening position on tab close / unload
   useEffect(() => {
     const handleBeforeUnload = () => {
       persistResumeState(currentTrackIndexRef.current, currentTimeRef.current, true);
     };
 
     window.addEventListener('beforeunload', handleBeforeUnload);
-
     return () => window.removeEventListener('beforeunload', handleBeforeUnload);
   }, [persistResumeState]);
 
+  // Unmount cleanup
   useEffect(() => () => {
     window.clearTimeout(idleTimerRef.current);
     window.clearTimeout(easterEggTimerRef.current);
     window.clearTimeout(preloadTimerRef.current);
-    window.cancelAnimationFrame(fadeFrameRef.current);
-    window.cancelAnimationFrame(vinylFrameRef.current);
     if (preloaderRef.current) {
       preloaderRef.current.pause();
       preloaderRef.current.removeAttribute('src');
@@ -399,37 +543,40 @@ export default function App() {
     }
   }, []);
 
-  const handleTimeUpdate = () => {
+  // Continuous Native Audio Time Tracking (Updates refs & persistence ONLY — 0 React root re-renders)
+  const handleTimeUpdate = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
-
     const curTime = audio.currentTime;
-    setCurrentTime(curTime);
     currentTimeRef.current = curTime;
     persistResumeState(currentTrackIndexRef.current, curTime);
-    applyAudioFade();
+  }, [persistResumeState]);
 
-    if (typeof window !== 'undefined' && 'mediaSession' in navigator) {
-      const mediaDuration = audio.duration;
-      if (
-        Number.isFinite(mediaDuration) &&
-        mediaDuration > 0 &&
-        Number.isFinite(curTime)
-      ) {
+  // Throttled MediaSession Position Sync (~1 Hz)
+  useEffect(() => {
+    if (typeof window === 'undefined' || !('mediaSession' in navigator)) return undefined;
+
+    const interval = window.setInterval(() => {
+      const audio = audioRef.current;
+      if (!audio || playbackStatus !== 'playing') return;
+      const mediaDuration = audio.duration || duration || 0;
+      if (Number.isFinite(mediaDuration) && mediaDuration > 0) {
         try {
           navigator.mediaSession.setPositionState({
             duration: mediaDuration,
             playbackRate: audio.playbackRate || 1,
-            position: Math.min(Math.max(0, curTime), mediaDuration),
+            position: Math.min(Math.max(0, audio.currentTime), mediaDuration),
           });
         } catch {
-          // Ignore intermediate or unsupported state errors
+          // Ignore
         }
       }
-    }
-  };
+    }, 1000);
 
-  const handleLoadedMetadata = () => {
+    return () => window.clearInterval(interval);
+  }, [duration, playbackStatus]);
+
+  const handleLoadedMetadata = useCallback(() => {
     const audio = audioRef.current;
     if (!audio) return;
 
@@ -446,15 +593,10 @@ export default function App() {
         Math.max(0, nextDuration - FADE_OUT_SECONDS - 0.5),
       );
       audio.currentTime = restoredTime;
-      setCurrentTime(restoredTime);
+      currentTimeRef.current = restoredTime;
       didRestoreResumeRef.current = true;
-    } else {
-      setCurrentTime(audio.currentTime);
     }
-
-    applyAudioFade();
-  };
-
+  }, [currentTrack.duration, currentTrackIndex]);
 
   // Metadata-only next track warm-up (with 2s debounce and explicit cancellation)
   useEffect(() => {
@@ -511,13 +653,11 @@ export default function App() {
     if (!targetTrack) return;
 
     // CRITICAL: Update imperative refs BEFORE scheduling React state.
-    // Rapid Next/Prev/Ended/MediaSession calls now see the new index instantly.
     currentTrackIndexRef.current = nextIndex;
     currentTimeRef.current = 0;
     didRestoreResumeRef.current = true;
 
     setCurrentTrackIndex(nextIndex);
-    setCurrentTime(0);
     setDuration(targetTrack.duration || 0);
 
     setPlaybackIntent(shouldPlay);
@@ -532,7 +672,6 @@ export default function App() {
     if (audio && audio.currentTime > 3) {
       audio.currentTime = 0;
       currentTimeRef.current = 0;
-      setCurrentTime(0);
       setPlaybackIntent(true);
       return;
     }
@@ -601,7 +740,6 @@ export default function App() {
         audio.currentTime = nextTime;
       }
       currentTimeRef.current = nextTime;
-      setCurrentTime(nextTime);
     });
 
     register('seekbackward', (details) => {
@@ -611,7 +749,6 @@ export default function App() {
       const nextTime = Math.max(0, audio.currentTime - offset);
       audio.currentTime = nextTime;
       currentTimeRef.current = nextTime;
-      setCurrentTime(nextTime);
     });
 
     register('seekforward', (details) => {
@@ -624,7 +761,6 @@ export default function App() {
       const nextTime = Math.min(curDur, audio.currentTime + offset);
       audio.currentTime = nextTime;
       currentTimeRef.current = nextTime;
-      setCurrentTime(nextTime);
     });
 
     return () => {
@@ -652,33 +788,27 @@ export default function App() {
     }
   }, [playbackStatus]);
 
-  const handlePlayPause = () => {
+  const handlePlayPause = useCallback(() => {
     const audio = audioRef.current;
     const nextIntent = !playIntentRef.current;
 
     if (nextIntent && audio && duration && audio.currentTime >= duration - 0.35) {
       audio.currentTime = 0;
       currentTimeRef.current = 0;
-      setCurrentTime(0);
     }
 
     setPlaybackIntent(nextIntent);
-  };
+  }, [duration, setPlaybackIntent]);
 
-  const handleSeek = (e) => {
-    if (!progressBarRef.current || !audioRef.current) return;
-    const rect = progressBarRef.current.getBoundingClientRect();
-    const clickX = e.clientX - rect.left;
-    const width = rect.width;
-    const percentage = Math.max(0, Math.min(1, clickX / width));
-    const newTime = percentage * (duration || 0);
-    audioRef.current.currentTime = newTime;
-    setCurrentTime(newTime);
-    applyAudioFade();
-  };
-
-  const progressPercent = duration ? (currentTime / duration) * 100 : 0;
-  const isBuffering = playbackStatus === 'loading' || playbackStatus === 'buffering';
+  const handleSeekFraction = useCallback((fraction) => {
+    const audio = audioRef.current;
+    if (!audio) return;
+    const targetDuration = audio.duration || duration || TRACKS[currentTrackIndexRef.current]?.duration || 0;
+    const nextTime = fraction * targetDuration;
+    audio.currentTime = nextTime;
+    currentTimeRef.current = nextTime;
+    persistResumeState(currentTrackIndexRef.current, nextTime, true);
+  }, [duration, persistResumeState]);
 
   return (
     <main
@@ -702,7 +832,6 @@ export default function App() {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-black/25 via-transparent to-black/45" />
         </div>
-
 
         <div
           className="absolute inset-0 transition-colors duration-[1600ms]"
@@ -753,8 +882,6 @@ export default function App() {
         }}
       />
 
-
-
       <div className={`presence-badge fixed top-5 left-1/2 -translate-x-1/2 z-20 flex items-center gap-2 drop-shadow-[0_1px_6px_rgba(0,0,0,0.9)] ${easterEggActive ? 'presence-badge-unlocked' : ''}`}>
         <span className="relative flex h-2.5 w-2.5">
           <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-[#00E575] opacity-75" />
@@ -769,123 +896,42 @@ export default function App() {
 
       <div className="player-dock flex w-full justify-center z-20">
         <div ref={playerShellRef} className={`player-shell relative w-full max-w-xl transition-all duration-700 ease-out ${isIdle && !isQueueOpen ? 'translate-y-2 scale-[0.96] opacity-75' : 'translate-y-0 scale-100 opacity-100'}`}>
-          {isQueueOpen && (
-            <div className="queue-panel absolute bottom-[calc(100%+0.75rem)] left-0 right-0 max-h-[60vh] md:max-h-[52vh] overflow-hidden rounded-[28px] border border-white/20 bg-black/65 p-3.5 shadow-[0_24px_80px_rgba(0,0,0,0.8),inset_0_1px_0_rgba(255,255,255,0.2)] backdrop-blur-3xl backdrop-saturate-200 flex flex-col z-30">
-              {/* Drawer Header & Real-Time Search */}
-              <div className="flex items-center gap-2.5 pb-2.5 border-b border-white/10 px-1">
-                <div className="relative flex-1 flex items-center">
-                  <Search size={14} className="absolute left-3.5 text-white/40 pointer-events-none" />
-                  <input
-                    ref={searchInputRef}
-                    type="text"
-                    value={searchQuery}
-                    onChange={(e) => setSearchQuery(e.target.value)}
-                    placeholder="Search tracks..."
-                    className="w-full bg-white/10 hover:bg-white/15 focus:bg-white/20 border border-white/15 focus:border-white/30 rounded-full pl-9 pr-8 py-2 text-[13px] text-white placeholder-white/40 outline-none transition duration-200"
-                  />
-                  {searchQuery && (
-                    <button
-                      type="button"
-                      onClick={() => setSearchQuery('')}
-                      className="absolute right-3 text-white/50 hover:text-white"
-                    >
-                      <X size={13} />
-                    </button>
-                  )}
-                </div>
-
-                <button
-                  type="button"
-                  onClick={() => {
-                    setIsQueueOpen(false);
-                    setSearchQuery('');
-                  }}
-                  aria-label="Close tracklist"
-                  className="grid h-8 w-8 place-items-center rounded-full text-white/60 hover:bg-white/15 hover:text-white transition active:scale-95 border-0 outline-none shrink-0"
-                >
-                  <X size={16} />
-                </button>
-              </div>
-
-              {/* Scrollable Clean Tracklist */}
-              <div className="queue-scroll mt-2 max-h-[calc(60vh-4.5rem)] md:max-h-[calc(52vh-4.5rem)] overflow-y-auto pr-1 space-y-1">
-                {filteredTracks.length === 0 ? (
-                  <div className="py-10 text-center text-xs text-white/40 font-mono">
-                    No tracks found matching "{searchQuery}"
-                  </div>
-                ) : (
-                  filteredTracks.map(({ track, index }) => {
-                    const isSelected = index === currentTrackIndex;
-                    return (
-                      <button
-                        type="button"
-                        key={track.id}
-                        ref={isSelected ? activeTrackRowRef : null}
-                        onClick={() => {
-                          selectTrack(index, true);
-                          setIsQueueOpen(false);
-                          setSearchQuery('');
-                        }}
-                        aria-current={isSelected ? 'true' : undefined}
-                        className={`group/row flex w-full items-center gap-3 rounded-2xl px-3 py-2 text-left text-white transition-all duration-200 ${
-                          isSelected
-                            ? 'bg-white/18 border border-white/25 shadow-sm'
-                            : 'hover:bg-white/10 border border-transparent'
-                        }`}
-                      >
-                        {/* Number or Equalizer */}
-                        <div className="w-6 shrink-0 flex items-center justify-center">
-                          {isSelected && (playbackStatus === 'playing' || (playbackStatus === 'buffering' && isPlaying)) ? (
-                            <div className="flex items-end gap-0.5 h-3.5">
-                              <span className="eq-bar-1 w-0.5 rounded-full bg-[#00E575]" />
-                              <span className="eq-bar-2 w-0.5 rounded-full bg-[#00E575]" />
-                              <span className="eq-bar-3 w-0.5 rounded-full bg-[#00E575]" />
-                            </div>
-                          ) : (
-                            <span className={`text-[11px] font-mono tabular-nums ${isSelected ? 'text-white font-bold' : 'text-white/40 group-hover/row:text-white/70'}`}>
-                              {String(index + 1).padStart(2, '0')}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Title & Artist */}
-                        <div className="min-w-0 flex-1">
-                          <div className={`truncate text-[13px] font-medium leading-snug ${isSelected ? 'text-white font-semibold' : 'text-white/90'}`}>
-                            {track.title}
-                          </div>
-                          <div className="truncate text-[11px] text-white/50 leading-none mt-0.5">
-                            {track.artist}
-                          </div>
-                        </div>
-
-                        {/* Duration */}
-                        <div className="shrink-0 font-mono text-[11px] tabular-nums text-white/45 group-hover/row:text-white/70">
-                          {formatTime(track.duration)}
-                        </div>
-                      </button>
-                    );
-                  })
-                )}
-              </div>
-            </div>
-          )}
-
-
+          <TrackDrawer
+            isOpen={isQueueOpen}
+            onClose={() => setIsQueueOpen(false)}
+            searchQuery={searchQuery}
+            onSearchChange={setSearchQuery}
+            onClearSearch={() => setSearchQuery('')}
+            filteredTracks={filteredTracks}
+            currentTrackIndex={currentTrackIndex}
+            isPlaying={isPlaying}
+            playbackStatus={playbackStatus}
+            onSelectTrack={(index) => {
+              selectTrack(index, true);
+              setIsQueueOpen(false);
+              setSearchQuery('');
+            }}
+            searchInputRef={searchInputRef}
+            activeTrackRowRef={activeTrackRowRef}
+          />
 
           <div
             className="
-              player-pill group relative flex items-center gap-4 rounded-full p-3 pr-5
+              player-pill relative flex items-center gap-3.5 rounded-[32px] p-3 pr-4
               bg-white/10 backdrop-blur-2xl backdrop-saturate-150
               border border-white/20
               shadow-[0_8px_40px_rgba(0,0,0,0.5),inset_0_1px_0_rgba(255,255,255,0.25)]
             "
           >
+            {/* Vinyl Disc with 100% GPU Compositor Hardware Acceleration */}
             <div className="relative h-20 w-20 shrink-0">
               <div
-                ref={vinylRef}
-                className="vinyl-disc h-full w-full rounded-full shadow-lg ring-1 ring-white/20 overflow-hidden"
+                className={`vinyl-disc h-full w-full rounded-full shadow-lg ring-1 ring-white/20 overflow-hidden ${
+                  prefersReducedMotion ? '' : 'vinyl-spin'
+                }`}
                 style={{
                   boxShadow: `0 12px 34px rgba(0,0,0,0.38), 0 0 26px ${currentAura.glow}`,
+                  animationPlayState: playbackStatus === 'playing' ? 'running' : 'paused',
                 }}
               >
                 <img
@@ -913,49 +959,15 @@ export default function App() {
                 </p>
               </button>
 
-              <div className="mt-2">
-                <div
-                  ref={progressBarRef}
-                  onClick={handleSeek}
-                  className="group/bar relative h-2.5 w-full cursor-pointer flex items-center"
-                  role="slider"
-                  aria-label="Seek"
-                  aria-valuemin="0"
-                  aria-valuemax={duration || 100}
-                  aria-valuenow={currentTime}
-                >
-                  <div className="h-1 w-full overflow-hidden rounded-full bg-white/20">
-                    <div
-                      className="h-full rounded-full transition-colors duration-700"
-                      style={{
-                        width: `${progressPercent}%`,
-                        backgroundColor: currentAura.accent,
-                      }}
-                    />
-                  </div>
-                  <div
-                    className="absolute top-1/2 h-3 w-3 -translate-x-1/2 -translate-y-1/2 rounded-full opacity-0 shadow transition-opacity group-hover/bar:opacity-100"
-                    style={{
-                      left: `${progressPercent}%`,
-                      backgroundColor: currentAura.accent,
-                    }}
-                  />
-                </div>
-
-                <div className="mt-1 flex items-center justify-between text-[11px] tabular-nums font-mono text-white/60">
-                  <span>{formatTime(currentTime)} / {formatTime(duration)}</span>
-                  {isBuffering && isPlaying && (
-                    <span className="text-[10px] text-amber-300/90 font-medium animate-pulse" aria-live="polite">
-                      Buffering…
-                    </span>
-                  )}
-                  {playbackStatus === 'error' && (
-                    <span className="text-[10px] text-rose-400 font-medium" title={playbackError?.message || ''} aria-live="polite">
-                      Unable to load audio
-                    </span>
-                  )}
-                </div>
-              </div>
+              <AudioProgressBar
+                audioRef={audioRef}
+                duration={duration}
+                accentColor={currentAura.accent}
+                playbackStatus={playbackStatus}
+                isPlaying={isPlaying}
+                playbackError={playbackError}
+                onSeek={handleSeekFraction}
+              />
             </div>
 
             <div className="flex items-center gap-1.5 shrink-0">

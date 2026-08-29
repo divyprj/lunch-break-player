@@ -77,13 +77,25 @@ button:focus, button:focus-visible {
     box-shadow 700ms ease;
 }
 
+@keyframes vinylSpin {
+  from {
+    transform: rotate(0deg);
+  }
+  to {
+    transform: rotate(360deg);
+  }
+}
+
 .vinyl-disc {
-  transform: rotate(0deg);
   transform-origin: 50% 50%;
   transition:
     box-shadow 700ms ease,
     filter 700ms ease;
   will-change: transform;
+}
+
+.vinyl-spin {
+  animation: vinylSpin 8s linear infinite;
 }
 
 .queue-panel {
